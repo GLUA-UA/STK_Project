@@ -1,207 +1,274 @@
-# SuperTuxKart Live Map
+# SuperTuxKart Live Map Toolkit
 
-Este projeto adiciona suporte a um **mapa em tempo real para
-SuperTuxKart**, mostrando a posição dos jogadores num mapa 2D durante
-uma corrida.
+Este projeto junta tres componentes em Python e uma alteracao no codigo do SuperTuxKart para acompanhar corridas e organizar torneios:
 
-O servidor STK foi modificado para enviar posições dos karts via
-**UDP**, e um script em **Python + Pygame** recebe esses dados e mostra
-o mapa.
+- `make3.py`: cliente simples para um servidor STK, com mapa em tempo real e leaderboard.
+- `make3_quad.py`: dashboard para monitorizar ate 4 servidores em paralelo.
+- `randomizador_grupos.py`: interface em `pygame` para criar grupos aleatorios de participantes.
+- `stk-code/src/modes/world.cpp`: ponto onde o STK envia dados UDP para os clientes Python.
 
-------------------------------------------------------------------------
+## Estrutura atual
 
-# Arquitetura
+Na raiz do projeto:
 
-SuperTuxKart Server\
-│\
-│ UDP (porta 9999)\
-▼\
-Python Script (main2.py)\
-│\
-▼\
-Mapa em tempo real (Pygame)
+- [`make3.py`](/home/victor/Documents/GLUA/STK_Project/projeto/make3.py)
+- [`make3_quad.py`](/home/victor/Documents/GLUA/STK_Project/projeto/make3_quad.py)
+- [`randomizador_grupos.py`](/home/victor/Documents/GLUA/STK_Project/projeto/randomizador_grupos.py)
+- [`stk-assets`](/home/victor/Documents/GLUA/STK_Project/projeto/stk-assets)
+- [`stk-code`](/home/victor/Documents/GLUA/STK_Project/projeto/stk-code)
+- [`pontuacoes`](/home/victor/Documents/GLUA/STK_Project/projeto/pontuacoes)
 
-Formato das mensagens:
+Ficheiros de configuracao de servidor STK usados neste projeto:
 
-    track_id|player_name|kart_type|x|z
+- [`stk-code/build-server/my.xml`](/home/victor/Documents/GLUA/STK_Project/projeto/stk-code/build-server/my.xml)
+- [`stk-code/build-server/other.xml`](/home/victor/Documents/GLUA/STK_Project/projeto/stk-code/build-server/other.xml)
+
+## Alteracao feita no STK
+
+O STK foi alterado em [`stk-code/src/modes/world.cpp`](/home/victor/Documents/GLUA/STK_Project/projeto/stk-code/src/modes/world.cpp) para enviar dados de cada kart por UDP.
+
+Formato atual do pacote:
+
+```text
+track|nome|kart|x|z|pos
+```
+
+Campos:
+
+- `track`: identificador da pista atual
+- `nome`: nome do jogador/controlador
+- `kart`: identificador do kart
+- `x`: coordenada X no mundo
+- `z`: coordenada Z no mundo
+- `pos`: posicao atual na corrida, usando a logica interna do STK
 
 Exemplo:
 
-    lighthouse|victor_m|tux|12.53|84.12
-
-------------------------------------------------------------------------
-
-# Requisitos
-
-## Servidor
-
--   Linux
--   SuperTuxKart compilado a partir do código fonte
--   alteração no ficheiro:
-
-```{=html}
-<!-- -->
+```text
+lighthouse|victor_m|tux|12.53|84.12|2
 ```
-    src/modes/world.cpp
 
-## Cliente (mapa)
+## Portas UDP usadas pela versao atual
 
--   Python 3
--   pygame
+A versao atual do `world.cpp` esta configurada com portas fixas:
 
-Instalar pygame:
+- `9998/udp`: o cliente Python envia `MAP_CONNECT` para aqui
+- `9999/udp`: o servidor STK envia os pacotes de volta para o cliente
 
-    pip install pygame
+Isto significa que, na versao atual do codigo, o fluxo esperado e o cliente Python e o servidor STK estarem alinhados com estas portas.
 
-------------------------------------------------------------------------
+## Como os mapas sao obtidos
 
-# Compilar o SuperTuxKart modificado
+Os scripts Python nao descarregam mapas da rede.
 
-Dentro da pasta do STK:
+O processo e este:
 
-    mkdir build
-    cd build
-    cmake ..
-    make -j$(nproc)
+1. O STK envia o `track_id` no pacote UDP.
+2. O script usa esse `track_id` para abrir localmente:
 
-O executável ficará em:
+```text
+stk-assets/tracks/<track_id>/quads.xml
+```
 
-    bin/supertuxkart
+3. O `quads.xml` e convertido para uma representacao 2D desenhada em `pygame`.
 
-------------------------------------------------------------------------
+Se aparecer `Track nao encontrada` ou `Sem mapa recebido`, verifica:
 
-# Iniciar o servidor
+- se ja chegaram pacotes UDP
+- se o `track_id` existe em `stk-assets/tracks`
+- se a pista usada no servidor e oficial ou existe localmente no teu PC
+
+## Requisitos
+
+### STK
+
+- Linux
+- codigo-fonte do STK em `stk-code`
+- assets em `stk-assets`
+- alteracao ativa em `stk-code/src/modes/world.cpp`
+
+### Python
+
+- Python 3
+- `pygame`
+
+Instalacao do `pygame`:
+
+```bash
+pip install pygame
+```
+
+## Compilar o STK
+
+No teu caso, a build funcional esta em `stk-code/build-server`.
+
+Comandos:
+
+```bash
+cd /home/victor/Documents/GLUA/STK_Project/projeto/stk-code/build-server
+cmake .. -DCMAKE_BUILD_TYPE=Debug -DNO_SHADERC=on
+cmake --build . -j"$(nproc)"
+```
+
+Executavel gerado:
+
+```text
+/home/victor/Documents/GLUA/STK_Project/projeto/stk-code/build-server/bin/supertuxkart
+```
+
+## Arrancar o servidor STK
+
+Exemplo com o `my.xml`:
+
+```bash
+cd /home/victor/Documents/GLUA/STK_Project/projeto/stk-code/build-server
+./bin/supertuxkart --server-config=my.xml --lan-server=pilinha --network-console
+```
+
+Segundo exemplo com `other.xml`:
+
+```bash
+cd /home/victor/Documents/GLUA/STK_Project/projeto/stk-code/build-server
+./bin/supertuxkart --server-config=other.xml --lan-server=pilinha2 --network-console
+```
+
+## Usar o cliente simples: `make3.py`
+
+Este e o cliente principal para um servidor.
 
 Executar:
 
-    ./bin/supertuxkart --server-config=server_config.xml
-
-ou iniciar uma corrida normalmente no jogo.
-
-------------------------------------------------------------------------
-
-# Executar o mapa
-
-Na pasta do projeto:
-
-    python3 main2.py
-
-Isto abre uma janela pygame com o mapa.
-
-------------------------------------------------------------------------
-
-# Configuração do IP
-
-No ficheiro:
-
-    main2.py
-
-existe esta variável:
-
-    IP_DO_SERVIDOR = "127.0.0.1"
-
-Este valor depende de onde o servidor está a correr.
-
-------------------------------------------------------------------------
-
-## Caso 1 --- servidor e mapa no mesmo PC
-
-Usar:
-
-    IP_DO_SERVIDOR = "127.0.0.1"
-
-ou
-
-    IP_DO_SERVIDOR = "localhost"
-
-------------------------------------------------------------------------
-
-## Caso 2 --- servidor em outro PC
-
-Descobrir o IP do servidor:
-
-    ip a
-
-ou
-
-    hostname -I
-
-Exemplo:
-
-    192.168.1.85
-
-Depois alterar no `main2.py`:
-
-    IP_DO_SERVIDOR = "192.168.1.85"
-
-------------------------------------------------------------------------
-
-# Portas usadas
-
-  Porta   Função
-  ------- ------------------------------
-  9998    pedido de ligação do mapa
-  9999    envio das posições dos karts
-
-------------------------------------------------------------------------
-
-# Como funciona a ligação
-
-1.  O script Python envia
-
-```{=html}
-<!-- -->
+```bash
+cd /home/victor/Documents/GLUA/STK_Project/projeto
+python3 make3.py
 ```
-    MAP_CONNECT
 
-para o servidor na porta **9998**.
+O script:
 
-2.  O servidor regista o cliente.
+- envia `MAP_CONNECT` para `127.0.0.1:9998`
+- faz `bind` local em `9999`
+- recebe os pacotes UDP
+- mostra mapa e leaderboard
+- guarda a classificacao atual ao fechar em `pontuacoes/`
 
-3.  O servidor começa a enviar posições dos karts via **UDP (9999)**.
+### O que o `make3.py` faz
 
-------------------------------------------------------------------------
+- aceita pacotes com `pos`
+- usa `pos` na leaderboard quando existe
+- mantem compatibilidade com pacotes antigos sem `pos`
+- cria ficheiros de pontuacao ao fechar
 
-# Problemas comuns
+## Usar o dashboard multi-servidor: `make3_quad.py`
 
-## O mapa não mostra jogadores
+Este script foi preparado para monitorizar ate 4 servidores em paralelo.
 
-Verificar se o servidor registou o cliente.
+Executar:
 
-No terminal do STK deve aparecer:
+```bash
+cd /home/victor/Documents/GLUA/STK_Project/projeto
+python3 make3_quad.py
+```
 
-    [MAPA] Novo cliente registrado: ...
+Configuracao no topo do ficheiro:
 
-------------------------------------------------------------------------
+```python
+SERVER_CONFIGS = [
+    {"label": "Server 1", "server_ip": "192.168.1.100", "server_port": 9998, "client_port": 10001},
+    {"label": "Server 2", "server_ip": "192.168.1.101", "server_port": 9998, "client_port": 10002},
+    {"label": "Server 3", "server_ip": "192.168.1.102", "server_port": 9998, "client_port": 10003},
+    {"label": "Server 4", "server_ip": "192.168.1.103", "server_port": 9998, "client_port": 10004},
+]
+```
 
-## Firewall
+Ajusta:
 
-Garantir que as portas estão abertas:
+- `label`: nome apresentado no painel
+- `server_ip`: IP do PC que corre o servidor STK
+- `server_port`: porta UDP do `world.cpp` desse servidor
+- `client_port`: porta local usada por este dashboard
 
-    sudo firewall-cmd --add-port=9998/udp
-    sudo firewall-cmd --add-port=9999/udp
+O `make3_quad.py` mostra, por servidor:
 
-------------------------------------------------------------------------
+- nome do servidor
+- pista atual
+- mapa 2D da pista
+- jogadores desenhados no mapa
+- leaderboard no mesmo estilo visual do `make3.py`
 
-## Pygame não encontrado
+Tambem guarda um resumo ao fechar em `pontuacoes/`.
 
-Instalar pygame:
+## Usar o randomizador de grupos
 
-    pip install pygame
+Executar:
 
-------------------------------------------------------------------------
+```bash
+cd /home/victor/Documents/GLUA/STK_Project/projeto
+python3 randomizador_grupos.py
+```
 
-# Melhorias possíveis
+Funcionalidades atuais:
 
--   rotação do kart
--   velocidade
--   posição na corrida
--   radar estilo spectator
--   suporte a múltiplos clientes
+- pede primeiro o numero de participantes
+- cria apenas os campos necessarios
+- randomiza os nomes em grupos
+- interface toda em `pygame`
 
-------------------------------------------------------------------------
+## Como descobrir o IP do teu servidor
 
-# Licença
+Na mesma rede local:
 
-Este projeto utiliza o código do **SuperTuxKart**, licenciado sob
-**GPLv3**.
+```bash
+hostname -I
+```
+
+ou
+
+```bash
+ip -4 addr show | grep inet
+```
+
+Se outro PC for usar o teu servidor no `make3_quad.py`, esse PC deve colocar o teu IP em `server_ip`.
+
+## Problemas comuns
+
+### `SDL2 not found`
+
+Em Fedora, instala:
+
+```bash
+sudo dnf install SDL2-devel
+```
+
+### `Track nao encontrada`
+
+O script recebeu um `track_id`, mas nao encontrou o `quads.xml` correspondente em `stk-assets/tracks/`.
+
+### `Sem mapa recebido`
+
+Nenhum pacote UDP chegou ainda desse servidor, ou o `track_id` ainda nao foi resolvido para um mapa local.
+
+### `Sem jogadores recebidos`
+
+O servidor ainda nao enviou karts desse painel, ou o cliente nao esta a receber pacotes desse servidor.
+
+### Firewall
+
+Se estiveres a usar rede local entre maquinas diferentes, confirma que as portas UDP estao acessiveis.
+
+Exemplo em Fedora:
+
+```bash
+sudo firewall-cmd --add-port=9998/udp
+sudo firewall-cmd --add-port=9999/udp
+```
+
+## Notas finais
+
+- `make3.py` e o cliente simples principal.
+- `make3_quad.py` e o dashboard multi-servidor.
+- `randomizador_grupos.py` e independente do STK: serve apenas para organizar grupos de torneio.
+- os ficheiros em `pontuacoes/` sao historicos gerados ao fechar os scripts de visualizacao.
+
+## Licenca
+
+O projeto usa codigo do SuperTuxKart, que esta sob GPLv3.

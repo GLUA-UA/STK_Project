@@ -1110,12 +1110,14 @@ void World::updateWorld(int ticks)
                 std::string name = StringUtils::wideToUtf8(k->getController()->getName());
                 std::string kart_type = k->getIdent();
                 Vec3 pos = k->getXYZ();
+                int race_pos = k->getPosition();
 
                 std::string msg = track_id + "|" + 
                               name + "|" + 
                               kart_type + "|" + 
                               std::to_string(pos.getX()) + "|" + 
-                              std::to_string(pos.getZ());
+                              std::to_string(pos.getZ()) + "|" +
+                              std::to_string(race_pos);
 
                 int sent = sendto(send_sock, msg.c_str(), msg.size(), 0, 
                                   (struct sockaddr*)&target_addr, sizeof(target_addr));
