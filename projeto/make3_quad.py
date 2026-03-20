@@ -2,21 +2,21 @@
 
 import os
 import socket
-import sys
 import xml.etree.ElementTree as ET
 from datetime import datetime
 
 import pygame
 
 BASE_ASSETS = "stk-assets/tracks/"
-WINDOW_WIDTH = 1680
-WINDOW_HEIGHT = 980
+WINDOW_WIDTH = 1672
+WINDOW_HEIGHT = 972
 FPS = 60
+
 SERVER_CONFIGS = [
-    {"label": "Server 1", "server_ip": "192.168.1.100", "server_port": 9998, "client_port": 10001},
-    {"label": "Server 2", "server_ip": "192.168.1.101", "server_port": 9998, "client_port": 10002},
-    {"label": "Server 3", "server_ip": "192.168.1.102", "server_port": 9998, "client_port": 10003},
-    {"label": "Server 4", "server_ip": "192.168.1.103", "server_port": 9998, "client_port": 10004},
+    {"label": "Server 1", "server_ip": "127.0.0.1", "server_port": 9998, "client_port": 9999},
+    {"label": "Server 2", "server_ip": "192.168.55.86", "server_port": 9998, "client_port": 9999},
+    {"label": "Server 3", "server_ip": "172.20.10.8", "server_port": 9998, "client_port": 9999},
+    {"label": "Server 4", "server_ip": "172.20.10.4", "server_port": 9998, "client_port": 9999},
 ]
 
 CARD_WIDTH = 800
@@ -26,6 +26,7 @@ LEADERBOARD_X = 540
 LEADERBOARD_W = 242
 LEADERBOARD_TITLE_Y = 86
 LEADERBOARD_ROWS_Y = 136
+
 COLOR_BG = (12, 12, 14)
 COLOR_PANEL = (26, 27, 33)
 COLOR_PANEL_ALT = (33, 35, 43)
@@ -37,6 +38,7 @@ COLOR_ORANGE = (255, 145, 40)
 COLOR_ORANGE_SOFT = (255, 185, 90)
 COLOR_ROW_A = (38, 40, 49)
 COLOR_ROW_B = (31, 33, 41)
+
 WARNED_MISSING_POS = set()
 
 
@@ -64,6 +66,7 @@ def load_track(track_id):
 
     xs = [p[0] for q in quads for p in q]
     zs = [p[1] for q in quads for p in q]
+
     return {
         "quads": quads,
         "min_x": min(xs),
@@ -98,64 +101,101 @@ def build_track_surface(track, width, height):
     return surface
 
 
-def setup_sockets():
-    sockets = []
+def normalize_sender_ip(ip):
+    if ip == "::ffff:127.0.0.1":
+        return "127.0.0.1"
+    if ip == "::1":
+        return "127.0.0.1"
+    return ip
+
+
+def setup_socket():
+    client_port = SERVER_CONFIGS[0]["client_port"]
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.bind(("0.0.0.0", client_port))
+    sock.setblocking(False)
+
+    print(f"[INFO] Shared socket ligado em 0.0.0.0:{client_port}")
+
     for config in SERVER_CONFIGS:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.bind(("0.0.0.0", config["client_port"]))
-        sock.setblocking(False)
         sock.sendto(b"MAP_CONNECT", (config["server_ip"], config["server_port"]))
-        sockets.append((config, sock))
         print(
-            f"[INFO] {config['label']} ligado: local {config['client_port']} -> "
-            f"{config['server_ip']}:{config['server_port']}"
+            f"[INFO] {config['label']} registado: "
+            f"0.0.0.0:{client_port} -> {config['server_ip']}:{config['server_port']}"
         )
-    return sockets
+
+    return sock
 
 
-def receive_packets(config, sock, state):
+def build_ip_map():
+    ip_map = {}
+    for config in SERVER_CONFIGS:
+        ip_map[config["server_ip"]] = config["label"]
+    return ip_map
+
+
+def process_packet_for_state(config, state, msg):
+    if "|" not in msg:
+        return
+
+    parts = msg.split("|")
+    if len(parts) < 5:
+        return
+
+    track_id, nome, kart, x, z = parts[:5]
+
+    pos = None
+    if len(parts) >= 6:
+        try:
+            pos = int(parts[5].strip())
+        except ValueError:
+            pos = None
+    elif config["label"] not in WARNED_MISSING_POS:
+        print(f"[WARN] {config['label']} sem pos no pacote: {msg}")
+        WARNED_MISSING_POS.add(config["label"])
+
+    if track_id != state["track_id"]:
+        state["track_id"] = track_id
+        state["track"] = load_track(track_id)
+        state["track_surface"] = (
+            build_track_surface(state["track"], MAP_AREA.width, MAP_AREA.height)
+            if state["track"]
+            else None
+        )
+        state["players"].clear()
+
+    state["players"][nome] = {
+        "x": float(x),
+        "z": float(z),
+        "kart": kart,
+        "pos": pos,
+    }
+
+
+def receive_packets(sock, states, ip_map):
     try:
         while True:
-            data, _ = sock.recvfrom(1024)
+            data, addr = sock.recvfrom(1024)
+            sender_ip, sender_port = addr
+            sender_ip = normalize_sender_ip(sender_ip)
+
             try:
                 msg = data.decode().strip()
             except UnicodeDecodeError:
                 continue
 
-            if "|" not in msg:
+            if sender_ip not in ip_map:
+                print(f"[IGNORADO] {sender_ip}:{sender_port} -> {msg}")
                 continue
 
-            parts = msg.split("|")
-            if len(parts) < 5:
-                continue
+            label = ip_map[sender_ip]
+            state = states[label]
+            config = state["config"]
 
-            track_id, nome, kart, x, z = parts[:5]
-            pos = None
-            if len(parts) >= 6:
-                try:
-                    pos = int(parts[5].strip())
-                except ValueError:
-                    pos = None
-            elif config["label"] not in WARNED_MISSING_POS:
-                print(f"[WARN] {config['label']} sem pos no pacote: {msg}")
-                WARNED_MISSING_POS.add(config["label"])
+            print(f"[{label}] FROM {sender_ip}:{sender_port} -> {msg}")
+            process_packet_for_state(config, state, msg)
 
-            if track_id != state["track_id"]:
-                state["track_id"] = track_id
-                state["track"] = load_track(track_id)
-                state["track_surface"] = (
-                    build_track_surface(state["track"], MAP_AREA.width, MAP_AREA.height)
-                    if state["track"]
-                    else None
-                )
-                state["players"].clear()
-
-            state["players"][nome] = {
-                "x": float(x),
-                "z": float(z),
-                "kart": kart,
-                "pos": pos,
-            }
     except BlockingIOError:
         return
 
@@ -179,7 +219,12 @@ def save_leaderboard(states):
     with open(file_path, "w", encoding="utf-8") as f:
         f.write(f"saved_at: {datetime.now().isoformat(timespec='seconds')}\n\n")
         for label, state in states.items():
-            f.write(f"[{label}] ip={state['config']['server_ip']} track={state['track_id'] or 'unknown'}\n")
+            f.write(
+                f"[{label}] ip={state['config']['server_ip']} "
+                f"server_port={state['config']['server_port']} "
+                f"client_port={state['config']['client_port']} "
+                f"track={state['track_id'] or 'unknown'}\n"
+            )
             for idx, (name, data) in enumerate(get_sorted_players(state["players"]), start=1):
                 pos_text = str(data.get("pos")) if data.get("pos") is not None else "?"
                 f.write(
@@ -187,6 +232,7 @@ def save_leaderboard(states):
                     f"x={data['x']:.3f} z={data['z']:.3f}\n"
                 )
             f.write("\n")
+
     print(f"[INFO] Pontuacoes guardadas em: {file_path}")
 
 
@@ -208,7 +254,13 @@ def draw_players_on_map(card_surface, state, font_small):
         return
 
     for nome, dados in state["players"].items():
-        px, py = world_to_surface(state["track"], dados["x"], dados["z"], MAP_AREA.width, MAP_AREA.height)
+        px, py = world_to_surface(
+            state["track"],
+            dados["x"],
+            dados["z"],
+            MAP_AREA.width,
+            MAP_AREA.height,
+        )
         center = (MAP_AREA.x + int(px), MAP_AREA.y + int(py))
         pygame.draw.circle(card_surface, (255, 255, 255), center, 8, 1)
         pygame.draw.circle(card_surface, COLOR_ORANGE, center, 6)
@@ -218,17 +270,23 @@ def draw_players_on_map(card_surface, state, font_small):
 
 def draw_server_card(screen, rect, state, fonts):
     title_font, font_name, font_kart, font_small = fonts
+
     panel = pygame.Surface((rect.width, rect.height))
     panel.fill(COLOR_PANEL)
     pygame.draw.rect(panel, COLOR_PANEL_ALT, panel.get_rect(), width=2, border_radius=16)
 
     title = title_font.render(state["config"]["label"], True, COLOR_ORANGE)
-    track_line = font_kart.render(f"Track: {state['track_id'] or 'sem dados'}", True, COLOR_MUTED)
+    track_line = font_kart.render(
+        f"Track: {state['track_id'] or 'sem dados'} | IP: {state['config']['server_ip']}",
+        True,
+        COLOR_MUTED,
+    )
     panel.blit(title, (18, 16))
     panel.blit(track_line, (18, 44))
 
     map_box = pygame.Rect(MAP_AREA)
     pygame.draw.rect(panel, COLOR_TRACK_BG, map_box, border_radius=12)
+
     if state["track_surface"]:
         panel.blit(state["track_surface"], map_box.topleft)
         draw_players_on_map(panel, state, font_small)
@@ -248,14 +306,18 @@ def draw_server_card(screen, rect, state, fonts):
 
     players_sorted = get_sorted_players(state["players"])
     row_y = LEADERBOARD_ROWS_Y
+
     for i, (nome, dados) in enumerate(players_sorted[:5]):
         bg = COLOR_ROW_A if i % 2 == 0 else COLOR_ROW_B
         pygame.draw.rect(panel, bg, (LEADERBOARD_X, row_y, LEADERBOARD_W, 50), border_radius=6)
+
         pos_label = f"{dados['pos']}." if dados.get("pos") is not None else "?."
         player = font_name.render(f"{pos_label} {nome[:16]}", True, COLOR_ORANGE_SOFT)
         kart = font_kart.render(f"Kart: {dados['kart']}", True, COLOR_TEXT)
+
         panel.blit(player, (LEADERBOARD_X + 10, row_y + 5))
         panel.blit(kart, (LEADERBOARD_X + 10, row_y + 28))
+
         row_y += 60
 
     if not players_sorted:
@@ -269,11 +331,14 @@ def main():
     pygame.init()
     screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
     pygame.display.set_caption("STK Live Quad")
+
     title_font = pygame.font.SysFont("Orbitron", 20, bold=True)
     font_name = pygame.font.SysFont("Segoe UI", 18, bold=True)
     font_kart = pygame.font.SysFont("Consolas", 14)
     font_small = pygame.font.SysFont("Arial", 12, bold=True)
-    sockets = setup_sockets()
+
+    sock = setup_socket()
+    ip_map = build_ip_map()
 
     states = {
         config["label"]: {
@@ -283,7 +348,7 @@ def main():
             "track_surface": None,
             "players": {},
         }
-        for config, _ in sockets
+        for config in SERVER_CONFIGS
     }
 
     card_positions = []
@@ -291,6 +356,7 @@ def main():
     margin_y = 24
     gap_x = 24
     gap_y = 24
+
     for row in range(2):
         for col in range(2):
             x = margin_x + col * (CARD_WIDTH + gap_x)
@@ -307,10 +373,10 @@ def main():
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                     return
 
-            for config, sock in sockets:
-                receive_packets(config, sock, states[config["label"]])
+            receive_packets(sock, states, ip_map)
 
             screen.fill(COLOR_BG)
+
             for rect, config in zip(card_positions, SERVER_CONFIGS):
                 draw_server_card(
                     screen,
@@ -321,10 +387,10 @@ def main():
 
             pygame.display.flip()
             clock.tick(FPS)
+
     finally:
         save_leaderboard(states)
-        for _, sock in sockets:
-            sock.close()
+        sock.close()
         pygame.quit()
 
 

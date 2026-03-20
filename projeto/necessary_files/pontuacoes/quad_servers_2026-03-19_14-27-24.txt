@@ -1,0 +1,10 @@
+saved_at: 2026-03-19T14:27:24
+
+[Server 1] ip=192.168.1.100 track=unknown
+
+[Server 2] ip=192.168.1.101 track=unknown
+
+[Server 3] ip=192.168.1.102 track=unknown
+
+[Server 4] ip=192.168.1.103 track=unknown
+

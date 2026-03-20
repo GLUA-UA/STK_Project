@@ -1,0 +1,13 @@
+saved_at: 2026-03-20T15:30:15
+
+[Server 1] ip=127.0.0.1 server_port=9998 client_port=9999 track=unknown
+
+[Server 2] ip=192.168.55.86 server_port=9998 client_port=9999 track=cocoa_temple
+1. nome=PTFGKiko_69 kart=amanda pos=1 x=101.647 z=38.368
+2. nome=RitaSantos kart=pidgin pos=2 x=-46.005 z=-145.593
+3. nome=Pimpinhas kart=pidgin pos=3 x=257.753 z=-36.030
+
+[Server 3] ip=172.20.10.8 server_port=9998 client_port=9999 track=unknown
+
+[Server 4] ip=172.20.10.4 server_port=9998 client_port=9999 track=unknown
+
