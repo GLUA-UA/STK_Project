@@ -14,3 +14,11 @@ __pycache__/
 # IDE/editor folders
 .vscode/
 .idea/
+
+# CMake/build folders
+build/
+build-server/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
