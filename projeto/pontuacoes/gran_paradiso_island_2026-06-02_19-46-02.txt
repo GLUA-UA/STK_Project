@@ -1,4 +1,0 @@
-track: gran_paradiso_island
-saved_at: 2026-06-02T19:46:02
-
-1. nome=victor_m kart=pidgin pos=1 x=-94.670 z=100.972

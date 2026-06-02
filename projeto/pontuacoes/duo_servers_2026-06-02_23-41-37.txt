@@ -1,4 +1,0 @@
-[Server 1] track=unknown
-
-[Server 2] track=unknown
-
