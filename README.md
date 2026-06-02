@@ -349,7 +349,8 @@ projeto/stk-code/COPYING
 
 ## Agradecimento
 
-Espero que este projecto ajude a criar bons momentos e alguma felicidade a este mundo em que vivemos.
+Espero que este projecto ajude a criar bons momentos e que traga alguma felicidade a este mundo em que vivemos.
 
 Obrigado ao GLUA e à equipa por detrás do STK :)
-Obrigado por jogares!
+
+Obrigado a ti por jogares!
