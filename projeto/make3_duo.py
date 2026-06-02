@@ -72,18 +72,47 @@ def load_track(track_id):
     }
 
 
-def build_track_surface(track):
-    surface = pygame.Surface((MAP_WIDTH, HEIGHT))
+def get_panel_layout(window_size):
+    width, height = window_size
+    panel_width = width // 2
+    sidebar_width = min(320, max(180, int(panel_width * 0.28)))
+    map_width = max(240, panel_width - sidebar_width)
+    if map_width + sidebar_width > panel_width:
+        map_width = max(1, panel_width - sidebar_width)
+    layouts = []
+
+    for index in range(2):
+        x = index * panel_width
+        panel_rect = pygame.Rect(x, 0, panel_width, height)
+        map_rect = pygame.Rect(x, 0, map_width, height)
+        sidebar_rect = pygame.Rect(x + map_width, 0, sidebar_width, height)
+        layouts.append({"panel": panel_rect, "map": map_rect, "sidebar": sidebar_rect})
+
+    return layouts
+
+
+def track_to_screen(track, x, z, rect):
+    track_w = track["width"] if track["width"] > 0 else 1.0
+    track_h = track["height"] if track["height"] > 0 else 1.0
+    padding = max(24, min(rect.width, rect.height) * 0.06)
+    usable_w = max(1, rect.width - padding * 2)
+    usable_h = max(1, rect.height - padding * 2)
+    scale = min(usable_w / track_w, usable_h / track_h)
+    offset_x = rect.x + (rect.width - track_w * scale) / 2
+    offset_y = rect.y + (rect.height - track_h * scale) / 2
+    px = offset_x + ((x - track["min_x"]) * scale)
+    py = rect.y + rect.height - (offset_y - rect.y + ((z - track["min_z"]) * scale))
+    return px, py
+
+
+def build_track_surface(track, size):
+    width, height = size
+    surface = pygame.Surface((width, height))
     surface.fill((15, 15, 15))
+    rect = surface.get_rect()
 
     for quad in track["quads"]:
-        pts = [
-            (
-                MAP_INSET_X + ((x - track["min_x"]) / track["width"]) * MAP_DRAW_WIDTH,
-                HEIGHT - BOTTOM_MARGIN - ((z - track["min_z"]) / track["height"]) * MAP_DRAW_HEIGHT,
-            )
-            for x, z in quad
-        ]
+        pts = [track_to_screen(track, x, z, rect) for x, z in quad]
         pygame.draw.polygon(surface, (70, 70, 70), pts, 1)
 
     return surface
@@ -133,7 +162,7 @@ def process_packet(config, state, msg):
     if track_id != state["track_id"]:
         state["track_id"] = track_id
         state["track"] = load_track(track_id)
-        state["track_surface"] = build_track_surface(state["track"]) if state["track"] else None
+        state["track_surface"] = None
         state["players"].clear()
 
     state["players"][nome] = {
@@ -195,34 +224,65 @@ def save_leaderboard(states):
     print(f"[INFO] Pontuacoes guardadas em: {file_path}")
 
 
-def draw_map(screen, surface, x_offset):
+def rebuild_track_surface(state, map_rect):
+    if state["track"] and state["track_surface"] is None:
+        state["track_surface"] = build_track_surface(state["track"], (map_rect.width, map_rect.height))
+
+
+def draw_map(screen, surface, map_rect):
     if surface:
-        screen.blit(surface, (x_offset, 0))
+        screen.blit(surface, map_rect.topleft)
     else:
-        pygame.draw.rect(screen, (15, 15, 15), (x_offset, 0, MAP_WIDTH, HEIGHT))
+        pygame.draw.rect(screen, (15, 15, 15), map_rect)
 
 
-def draw_players(screen, state, font, x_offset):
+def fit_text(font, text, max_width):
+    if font.size(text)[0] <= max_width:
+        return text
+
+    words = text.split()
+    fitted = ""
+
+    for word in words:
+        candidate = word if not fitted else f"{fitted} {word}"
+        if font.size(f"{candidate}...")[0] <= max_width:
+            fitted = candidate
+        else:
+            break
+
+    if fitted:
+        return f"{fitted}..."
+
+    trimmed = text
+    while trimmed and font.size(f"{trimmed}...")[0] > max_width:
+        trimmed = trimmed[:-1]
+    return f"{trimmed}..." if trimmed else "..."
+
+
+def draw_players(screen, state, font, map_rect):
     track = state["track"]
     if not track:
         return
 
     for nome, dados in state["players"].items():
-        px = x_offset + MAP_INSET_X + ((dados["x"] - track["min_x"]) / track["width"]) * MAP_DRAW_WIDTH
-        py = HEIGHT - BOTTOM_MARGIN - ((dados["z"] - track["min_z"]) / track["height"]) * MAP_DRAW_HEIGHT
+        px, py = track_to_screen(track, dados["x"], dados["z"], map_rect)
         pygame.draw.circle(screen, (255, 255, 255), (int(px), int(py)), 11, 1)
         pygame.draw.circle(screen, COLOR_ORANGE, (int(px), int(py)), 9)
         label = font.render(nome[:12], True, COLOR_TEXT)
         screen.blit(label, (int(px) + 12, int(py) - 12))
 
 
-def draw_leaderboard(screen, state, font_title, font_name, font_kart, x_offset):
-    panel_x = x_offset + MAP_WIDTH
-    title = font_title.render(state["config"]["label"], True, COLOR_ORANGE)
+def draw_leaderboard(screen, state, font_title, font_name, font_kart, sidebar_rect):
+    old_clip = screen.get_clip()
+    screen.set_clip(sidebar_rect)
+
+    panel_x = sidebar_rect.x
+    text_width = sidebar_rect.width - 40
+    title = font_title.render(fit_text(font_title, state["config"]["label"], text_width), True, COLOR_ORANGE)
     screen.blit(title, (panel_x + 20, 28))
 
     track_label = state["track_id"] or "sem dados"
-    track_text = font_kart.render(f"Track: {track_label}", True, COLOR_MUTED)
+    track_text = font_kart.render(fit_text(font_kart, f"Track: {track_label}", text_width), True, COLOR_MUTED)
     screen.blit(track_text, (panel_x + 20, 64))
 
     leaderboard_title = font_title.render("LEADERBOARD", True, COLOR_ORANGE)
@@ -231,50 +291,59 @@ def draw_leaderboard(screen, state, font_title, font_name, font_kart, x_offset):
         screen,
         COLOR_ORANGE,
         (panel_x + 20, 154),
-        (panel_x + SIDEBAR_WIDTH - 20, 154),
+        (sidebar_rect.right - 20, 154),
         3,
     )
 
-    y = 178
+    start_y = 178
+    row_height = 54
+    row_gap = 8
+    y = start_y
     players_sorted = get_sorted_players(state["players"])
+    max_rows = max(0, (sidebar_rect.height - start_y - 32) // (row_height + row_gap))
+    visible_players = players_sorted[:max_rows]
 
-    for i, (nome, dados) in enumerate(players_sorted[:10]):
+    for i, (nome, dados) in enumerate(visible_players):
         bg = COLOR_ALT1 if i % 2 == 0 else COLOR_ALT2
         pygame.draw.rect(
             screen,
             bg,
-            (panel_x + 10, y, SIDEBAR_WIDTH - 20, 64),
+            (panel_x + 10, y, sidebar_rect.width - 20, row_height),
             border_radius=8,
         )
 
         pos_label = f"{dados['pos']}." if dados.get("pos") is not None else "?."
-        player = font_name.render(f"{pos_label} {nome[:16]}", True, COLOR_ORANGE_SOFT)
-        kart = font_kart.render(f"Kart: {dados['kart']}", True, COLOR_TEXT)
+        player_text = fit_text(font_name, f"{pos_label} {nome}", text_width)
+        kart_text = fit_text(font_kart, f"Kart: {dados['kart']}", text_width)
+        player = font_name.render(player_text, True, COLOR_ORANGE_SOFT)
+        kart = font_kart.render(kart_text, True, COLOR_TEXT)
         screen.blit(player, (panel_x + 20, y + 7))
-        screen.blit(kart, (panel_x + 20, y + 38))
-        y += 76
+        screen.blit(kart, (panel_x + 20, y + 31))
+        y += row_height + row_gap
 
     if not players_sorted:
         empty = font_kart.render("Sem jogadores recebidos.", True, COLOR_MUTED)
-        screen.blit(empty, (panel_x + 20, 178))
+        screen.blit(empty, (panel_x + 20, start_y))
 
+    hidden_count = len(players_sorted) - len(visible_players)
+    if hidden_count > 0:
+        footer_text = fit_text(font_kart, f"+{hidden_count} jogadores fora da vista", text_width)
+        footer = font_kart.render(footer_text, True, COLOR_MUTED)
+        screen.blit(footer, (panel_x + 20, sidebar_rect.bottom - 26))
 
-def draw_scaled(canvas, screen, window_size):
-    scaled = pygame.transform.smoothscale(canvas, window_size)
-    screen.blit(scaled, (0, 0))
+    screen.set_clip(old_clip)
 
 
 def main():
     pygame.init()
     window_size = (WINDOW_WIDTH, HEIGHT)
     screen = pygame.display.set_mode(window_size, pygame.RESIZABLE)
-    canvas = pygame.Surface((WINDOW_WIDTH, HEIGHT))
     pygame.display.set_caption("STK Live Duo")
 
-    font_small = pygame.font.SysFont("Arial", 16, bold=True)
-    font_title = pygame.font.SysFont("Orbitron", 24, bold=True)
-    font_name = pygame.font.SysFont("Segoe UI", 22, bold=True)
-    font_kart = pygame.font.SysFont("Consolas", 17)
+    font_small = pygame.font.SysFont("Arial", 12, bold=True)
+    font_title = pygame.font.SysFont("Orbitron", 18, bold=True)
+    font_name = pygame.font.SysFont("Segoe UI", 16, bold=True)
+    font_kart = pygame.font.SysFont("Consolas", 12)
 
     sock = setup_socket()
     ip_map = build_ip_map()
@@ -289,6 +358,7 @@ def main():
         }
         for config in SERVER_CONFIGS
     }
+    panel_layouts = get_panel_layout(window_size)
 
     clock = pygame.time.Clock()
 
@@ -305,18 +375,20 @@ def main():
                         max(event.h, MIN_WINDOW_HEIGHT),
                     )
                     screen = pygame.display.set_mode(window_size, pygame.RESIZABLE)
+                    panel_layouts = get_panel_layout(window_size)
+                    for state in states.values():
+                        state["track_surface"] = None
 
             receive_packets(sock, states, ip_map)
 
-            canvas.fill(COLOR_BG)
+            screen.fill(COLOR_BG)
             for index, config in enumerate(SERVER_CONFIGS[:2]):
-                x_offset = index * PANEL_WIDTH
                 state = states[config["label"]]
-                draw_map(canvas, state["track_surface"], x_offset)
-                draw_players(canvas, state, font_small, x_offset)
-                draw_leaderboard(canvas, state, font_title, font_name, font_kart, x_offset)
-
-            draw_scaled(canvas, screen, window_size)
+                layout = panel_layouts[index]
+                rebuild_track_surface(state, layout["map"])
+                draw_map(screen, state["track_surface"], layout["map"])
+                draw_players(screen, state, font_small, layout["map"])
+                draw_leaderboard(screen, state, font_title, font_name, font_kart, layout["sidebar"])
 
             pygame.display.flip()
             clock.tick(60)

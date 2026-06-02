@@ -217,7 +217,7 @@ def scale_mouse_event(event, window_size):
 
 
 def draw_scaled(canvas, screen, window_size):
-    scaled = pygame.transform.smoothscale(canvas, window_size)
+    scaled = pygame.transform.scale(canvas, window_size)
     screen.blit(scaled, (0, 0))
 
 

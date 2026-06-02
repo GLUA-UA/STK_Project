@@ -29,6 +29,7 @@ COLOR_ALT2 = (25, 25, 25)
 COLOR_ORANGE = (255, 140, 0)
 COLOR_ORANGE_SOFT = (255, 180, 80)
 COLOR_TEXT = (240, 240, 240)
+COLOR_MUTED = (160, 160, 160)
 
 # ================= TRACK =================
 def load_track(track_id):
@@ -70,18 +71,38 @@ def load_track(track_id):
     }
 
 
-def build_track_surface(track):
-    surface = pygame.Surface((MAP_WIDTH, HEIGHT))
+def get_layout(window_size):
+    width, height = window_size
+    sidebar_width = min(320, max(230, int(width * 0.25)))
+    map_width = max(320, width - sidebar_width)
+    return {
+        "map_rect": pygame.Rect(0, 0, map_width, height),
+        "sidebar_rect": pygame.Rect(map_width, 0, sidebar_width, height),
+    }
+
+
+def track_to_screen(track, x, z, rect):
+    track_w = track["width"] if track["width"] > 0 else 1.0
+    track_h = track["height"] if track["height"] > 0 else 1.0
+    padding = max(24, min(rect.width, rect.height) * 0.06)
+    usable_w = max(1, rect.width - padding * 2)
+    usable_h = max(1, rect.height - padding * 2)
+    scale = min(usable_w / track_w, usable_h / track_h)
+    offset_x = rect.x + (rect.width - track_w * scale) / 2
+    offset_y = rect.y + (rect.height - track_h * scale) / 2
+    px = offset_x + ((x - track["min_x"]) * scale)
+    py = rect.y + rect.height - (offset_y - rect.y + ((z - track["min_z"]) * scale))
+    return px, py
+
+
+def build_track_surface(track, size):
+    width, height = size
+    surface = pygame.Surface((width, height))
     surface.fill((15, 15, 15))
+    rect = surface.get_rect()
 
     for quad in track["quads"]:
-        pts = [
-            (
-                50 + ((x - track["min_x"]) / track["width"]) * 700,
-                750 - ((z - track["min_z"]) / track["height"]) * 700
-            )
-            for x, z in quad
-        ]
+        pts = [track_to_screen(track, x, z, rect) for x, z in quad]
         pygame.draw.polygon(surface, (70, 70, 70), pts, 1)
 
     return surface
@@ -185,50 +206,93 @@ def save_leaderboard(jogadores, track_id):
 
 
 # ================= RENDER =================
-def draw_map(screen, surface):
+def fit_text(font, text, max_width):
+    if font.size(text)[0] <= max_width:
+        return text
+
+    words = text.split()
+    fitted = ""
+
+    for word in words:
+        candidate = word if not fitted else f"{fitted} {word}"
+        if font.size(f"{candidate}...")[0] <= max_width:
+            fitted = candidate
+        else:
+            break
+
+    if fitted:
+        return f"{fitted}..."
+
+    trimmed = text
+    while trimmed and font.size(f"{trimmed}...")[0] > max_width:
+        trimmed = trimmed[:-1]
+    return f"{trimmed}..." if trimmed else "..."
+
+
+def draw_map(screen, surface, map_rect):
     if surface:
-        screen.blit(surface, (0, 0))
+        screen.blit(surface, map_rect.topleft)
     else:
-        pygame.draw.rect(screen, (15, 15, 15), (0, 0, MAP_WIDTH, HEIGHT))
+        pygame.draw.rect(screen, (15, 15, 15), map_rect)
 
 
-def draw_leaderboard(screen, jogadores, font_title, font_name, font_kart):
+def draw_leaderboard(screen, jogadores, font_title, font_name, font_kart, sidebar_rect):
+    old_clip = screen.get_clip()
+    screen.set_clip(sidebar_rect)
+
     title = font_title.render("LEADERBOARD", True, COLOR_ORANGE)
-    screen.blit(title, (MAP_WIDTH + 20, 20))
+    screen.blit(title, (sidebar_rect.x + 20, 20))
 
     pygame.draw.line(screen, COLOR_ORANGE,
-                     (MAP_WIDTH + 20, 50),
-                     (WINDOW_WIDTH - 20, 50), 2)
+                     (sidebar_rect.x + 20, 50),
+                     (sidebar_rect.right - 20, 50), 2)
 
-    y = 70
-
+    start_y = 70
+    row_height = 50
+    row_gap = 10
+    y = start_y
+    text_width = sidebar_rect.width - 40
     players_sorted = get_sorted_players(jogadores)
+    max_rows = max(0, (sidebar_rect.height - start_y - 32) // (row_height + row_gap))
+    visible_players = players_sorted[:max_rows]
 
-    for i, (nome, dados) in enumerate(players_sorted):
+    for i, (nome, dados) in enumerate(visible_players):
         bg = COLOR_ALT1 if i % 2 == 0 else COLOR_ALT2
 
-        pygame.draw.rect(screen, bg,
-                         (MAP_WIDTH + 10, y, SIDEBAR_WIDTH - 20, 50),
-                         border_radius=6)
+        pygame.draw.rect(
+            screen,
+            bg,
+            (sidebar_rect.x + 10, y, sidebar_rect.width - 20, row_height),
+            border_radius=6,
+        )
 
         display_pos = dados.get('pos')
         pos_label = f"{display_pos}." if display_pos is not None else "?."
-        player = font_name.render(f"{pos_label} {nome[:12]}", True, COLOR_ORANGE_SOFT)
-        kart = font_kart.render(f"Kart: {dados['kart']}", True, COLOR_TEXT)
+        player_text = fit_text(font_name, f"{pos_label} {nome}", text_width)
+        kart_text = fit_text(font_kart, f"Kart: {dados['kart']}", text_width)
+        player = font_name.render(player_text, True, COLOR_ORANGE_SOFT)
+        kart = font_kart.render(kart_text, True, COLOR_TEXT)
 
-        screen.blit(player, (MAP_WIDTH + 20, y + 5))
-        screen.blit(kart, (MAP_WIDTH + 20, y + 28))
+        screen.blit(player, (sidebar_rect.x + 20, y + 5))
+        screen.blit(kart, (sidebar_rect.x + 20, y + 28))
 
-        y += 60
+        y += row_height + row_gap
+
+    hidden_count = len(players_sorted) - len(visible_players)
+    if hidden_count > 0:
+        footer_text = fit_text(font_kart, f"+{hidden_count} jogadores fora da vista", text_width)
+        footer = font_kart.render(footer_text, True, COLOR_MUTED)
+        screen.blit(footer, (sidebar_rect.x + 20, sidebar_rect.bottom - 26))
+
+    screen.set_clip(old_clip)
 
 
-def draw_players(screen, jogadores, track, font):
+def draw_players(screen, jogadores, track, font, map_rect):
     if not track:
         return
 
     for nome, dados in jogadores.items():
-        px = 50 + ((dados['x'] - track["min_x"]) / track["width"]) * 700
-        py = 750 - ((dados['z'] - track["min_z"]) / track["height"]) * 700
+        px, py = track_to_screen(track, dados["x"], dados["z"], map_rect)
 
         pygame.draw.circle(screen, (255, 255, 255), (int(px), int(py)), 9, 1)
         pygame.draw.circle(screen, COLOR_ORANGE, (int(px), int(py)), 7)
@@ -237,24 +301,18 @@ def draw_players(screen, jogadores, track, font):
         screen.blit(label, (int(px) + 10, int(py) - 10))
 
 
-def draw_scaled(canvas, screen, window_size):
-    scaled = pygame.transform.smoothscale(canvas, window_size)
-    screen.blit(scaled, (0, 0))
-
-
 # ================= MAIN =================
 def main():
     pygame.init()
 
     window_size = (WINDOW_WIDTH, HEIGHT)
     screen = pygame.display.set_mode(window_size, pygame.RESIZABLE)
-    canvas = pygame.Surface((WINDOW_WIDTH, HEIGHT))
     pygame.display.set_caption("STK Live")
 
     font_small = pygame.font.SysFont("Arial", 12, bold=True)
     font_title = pygame.font.SysFont("Orbitron", 20, bold=True)
-    font_name = pygame.font.SysFont("Segoe UI", 18, bold=True)
-    font_kart = pygame.font.SysFont("Consolas", 14)
+    font_name = pygame.font.SysFont("Segoe UI", 16, bold=True)
+    font_kart = pygame.font.SysFont("Consolas", 12)
 
     sock = setup_socket()
 
@@ -262,6 +320,7 @@ def main():
     track = None
     track_surface = None
     current_track_id = ""
+    layout = get_layout(window_size)
 
     clock = pygame.time.Clock()
 
@@ -276,21 +335,29 @@ def main():
                         max(event.h, MIN_WINDOW_HEIGHT),
                     )
                     screen = pygame.display.set_mode(window_size, pygame.RESIZABLE)
+                    layout = get_layout(window_size)
+                    if track:
+                        track_surface = build_track_surface(
+                            track,
+                            (layout["map_rect"].width, layout["map_rect"].height),
+                        )
 
             new_track_id = receive_packets(sock, jogadores, current_track_id)
 
             if new_track_id:
                 track = load_track(new_track_id)
                 if track:
-                    track_surface = build_track_surface(track)
+                    track_surface = build_track_surface(
+                        track,
+                        (layout["map_rect"].width, layout["map_rect"].height),
+                    )
                     current_track_id = new_track_id
 
-            canvas.fill(COLOR_BG)
+            screen.fill(COLOR_BG)
 
-            draw_map(canvas, track_surface)
-            draw_leaderboard(canvas, jogadores, font_title, font_name, font_kart)
-            draw_players(canvas, jogadores, track, font_small)
-            draw_scaled(canvas, screen, window_size)
+            draw_map(screen, track_surface, layout["map_rect"])
+            draw_leaderboard(screen, jogadores, font_title, font_name, font_kart, layout["sidebar_rect"])
+            draw_players(screen, jogadores, track, font_small, layout["map_rect"])
 
             pygame.display.flip()
             clock.tick(60)
