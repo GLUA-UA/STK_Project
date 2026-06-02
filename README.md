@@ -15,9 +15,9 @@ sistema.
 
 | Caminho | Funcao |
 | --- | --- |
-| `projeto/make3.py` | Cliente principal para ver um servidor. |
-| `projeto/make3_duo.py` | Dashboard para dois servidores. |
-| `projeto/make3_quad.py` | Dashboard para ate quatro servidores. |
+| `projeto/live_map.py` | Cliente principal para ver um servidor. |
+| `projeto/live_map_duo.py` | Dashboard para dois servidores. |
+| `projeto/live_map_quad.py` | Dashboard para ate quatro servidores. |
 | `projeto/stk-code/` | Codigo-fonte do SuperTuxKart com a alteracao UDP. |
 | `projeto/stk-assets/` | Assets do SuperTuxKart usados para desenhar as pistas. |
 | `projeto/stk-code/src/modes/world.cpp` | Ficheiro do STK alterado para enviar telemetria por UDP. |
@@ -159,7 +159,7 @@ firewall permite estas portas UDP.
 
 ```bash
 cd projeto
-python3 make3.py
+python3 live_map.py
 ```
 
 Por defeito, o script usa:
@@ -171,7 +171,7 @@ Por defeito, o script usa:
 | Porta local do cliente | `9999` |
 
 Se o servidor STK estiver noutro computador, altera `SERVER_IP` no topo de
-`projeto/make3.py`.
+`projeto/live_map.py`.
 
 ## Usar os Dashboards Multi-Servidor
 
@@ -179,19 +179,19 @@ Para dois servidores:
 
 ```bash
 cd projeto
-python3 make3_duo.py
+python3 live_map_duo.py
 ```
 
 Para ate quatro servidores:
 
 ```bash
 cd projeto
-python3 make3_quad.py
+python3 live_map_quad.py
 ```
 
 Antes de executar, edita `SERVER_CONFIGS` no topo do script.
 
-Exemplo para `make3_duo.py`:
+Exemplo para `live_map_duo.py`:
 
 ```python
 UDP_PORT = 9999
@@ -202,7 +202,7 @@ SERVER_CONFIGS = [
 ]
 ```
 
-Exemplo para `make3_quad.py`:
+Exemplo para `live_map_quad.py`:
 
 ```python
 SERVER_CONFIGS = [
@@ -218,7 +218,7 @@ O importante e:
 | `label` | Nome que aparece no dashboard. |
 | `server_ip` | IP do computador que corre esse servidor STK. |
 | `server_port` | Porta UDP onde o STK recebe `MAP_CONNECT`. |
-| `client_port` | Porta UDP local usada pelo dashboard `make3_quad.py`. |
+| `client_port` | Porta UDP local usada pelo dashboard `live_map_quad.py`. |
 
 Os dashboards usam uma porta local partilhada, normalmente `9999`.
 
@@ -226,9 +226,9 @@ Os dashboards usam uma porta local partilhada, normalmente `9999`.
 
 As janelas dos scripts principais podem ser redimensionadas:
 
-- `make3.py`
-- `make3_duo.py`
-- `make3_quad.py`
+- `live_map.py`
+- `live_map_duo.py`
+- `live_map_quad.py`
 - `necessary_files/randomizador_grupos.py`
 
 O conteudo escala com o tamanho da janela. Isto ajuda quando o projecto e usado
@@ -263,7 +263,7 @@ Em macOS, aceita o pedido de permissao de rede se o sistema mostrar uma janela.
 
 ## Guardar Pontuacoes
 
-Quando fechas `make3.py`, `make3_duo.py` ou `make3_quad.py`, o script guarda a
+Quando fechas `live_map.py`, `live_map_duo.py` ou `live_map_quad.py`, o script guarda a
 classificacao actual em:
 
 ```text
@@ -288,7 +288,7 @@ projecto. Era uma copia/teste do dashboard de quatro servidores. O ficheiro acti
 deve ser:
 
 ```text
-projeto/make3_quad.py
+projeto/live_map_quad.py
 ```
 
 `projeto/necessary_files/pontuacoes/` tambem nao e necessario. Essa pasta so tem
@@ -333,7 +333,7 @@ modificado. Um servidor normal do SuperTuxKart nao envia estes pacotes UDP.
 3. Copiar ou preparar `my.xml` na pasta `build-server`.
 4. Arrancar o servidor STK.
 5. Comecar uma corrida.
-6. Executar `make3.py`, `make3_duo.py` ou `make3_quad.py`.
+6. Executar `live_map.py`, `live_map_duo.py` ou `live_map_quad.py`.
 7. Fechar a janela no fim para guardar a classificacao.
 
 ## Licenca
