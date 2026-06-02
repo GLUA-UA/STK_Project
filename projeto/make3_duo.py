@@ -20,6 +20,8 @@ SIDEBAR_WIDTH = 260
 PANEL_WIDTH = MAP_WIDTH + SIDEBAR_WIDTH
 HEIGHT = 1080
 WINDOW_WIDTH = 1920
+MIN_WINDOW_WIDTH = 900
+MIN_WINDOW_HEIGHT = 520
 TOP_MARGIN = 40
 BOTTOM_MARGIN = 40
 MAP_INSET_X = 36
@@ -257,9 +259,16 @@ def draw_leaderboard(screen, state, font_title, font_name, font_kart, x_offset):
         screen.blit(empty, (panel_x + 20, 178))
 
 
+def draw_scaled(canvas, screen, window_size):
+    scaled = pygame.transform.smoothscale(canvas, window_size)
+    screen.blit(scaled, (0, 0))
+
+
 def main():
     pygame.init()
-    screen = pygame.display.set_mode((WINDOW_WIDTH, HEIGHT))
+    window_size = (WINDOW_WIDTH, HEIGHT)
+    screen = pygame.display.set_mode(window_size, pygame.RESIZABLE)
+    canvas = pygame.Surface((WINDOW_WIDTH, HEIGHT))
     pygame.display.set_caption("STK Live Duo")
 
     font_small = pygame.font.SysFont("Arial", 16, bold=True)
@@ -290,16 +299,24 @@ def main():
                     return
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                     return
+                if event.type == pygame.VIDEORESIZE:
+                    window_size = (
+                        max(event.w, MIN_WINDOW_WIDTH),
+                        max(event.h, MIN_WINDOW_HEIGHT),
+                    )
+                    screen = pygame.display.set_mode(window_size, pygame.RESIZABLE)
 
             receive_packets(sock, states, ip_map)
 
-            screen.fill(COLOR_BG)
+            canvas.fill(COLOR_BG)
             for index, config in enumerate(SERVER_CONFIGS[:2]):
                 x_offset = index * PANEL_WIDTH
                 state = states[config["label"]]
-                draw_map(screen, state["track_surface"], x_offset)
-                draw_players(screen, state, font_small, x_offset)
-                draw_leaderboard(screen, state, font_title, font_name, font_kart, x_offset)
+                draw_map(canvas, state["track_surface"], x_offset)
+                draw_players(canvas, state, font_small, x_offset)
+                draw_leaderboard(canvas, state, font_title, font_name, font_kart, x_offset)
+
+            draw_scaled(canvas, screen, window_size)
 
             pygame.display.flip()
             clock.tick(60)

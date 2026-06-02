@@ -10,6 +10,8 @@ import pygame
 BASE_ASSETS = "stk-assets/tracks/"
 WINDOW_WIDTH = 1672
 WINDOW_HEIGHT = 972
+MIN_WINDOW_WIDTH = 900
+MIN_WINDOW_HEIGHT = 520
 FPS = 60
 
 SERVER_CONFIGS = [
@@ -327,9 +329,16 @@ def draw_server_card(screen, rect, state, fonts):
     screen.blit(panel, rect.topleft)
 
 
+def draw_scaled(canvas, screen, window_size):
+    scaled = pygame.transform.smoothscale(canvas, window_size)
+    screen.blit(scaled, (0, 0))
+
+
 def main():
     pygame.init()
-    screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
+    window_size = (WINDOW_WIDTH, WINDOW_HEIGHT)
+    screen = pygame.display.set_mode(window_size, pygame.RESIZABLE)
+    canvas = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT))
     pygame.display.set_caption("STK Live Quad")
 
     title_font = pygame.font.SysFont("Orbitron", 20, bold=True)
@@ -372,18 +381,26 @@ def main():
                     return
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                     return
+                if event.type == pygame.VIDEORESIZE:
+                    window_size = (
+                        max(event.w, MIN_WINDOW_WIDTH),
+                        max(event.h, MIN_WINDOW_HEIGHT),
+                    )
+                    screen = pygame.display.set_mode(window_size, pygame.RESIZABLE)
 
             receive_packets(sock, states, ip_map)
 
-            screen.fill(COLOR_BG)
+            canvas.fill(COLOR_BG)
 
             for rect, config in zip(card_positions, SERVER_CONFIGS):
                 draw_server_card(
-                    screen,
+                    canvas,
                     rect,
                     states[config["label"]],
                     (title_font, font_name, font_kart, font_small),
                 )
+
+            draw_scaled(canvas, screen, window_size)
 
             pygame.display.flip()
             clock.tick(FPS)

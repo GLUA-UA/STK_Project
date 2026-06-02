@@ -17,6 +17,8 @@ MAP_WIDTH = 800
 SIDEBAR_WIDTH = 250
 HEIGHT = 800
 WINDOW_WIDTH = MAP_WIDTH + SIDEBAR_WIDTH
+MIN_WINDOW_WIDTH = 700
+MIN_WINDOW_HEIGHT = 520
 
 WARNED_MISSING_POS = False
 
@@ -235,11 +237,18 @@ def draw_players(screen, jogadores, track, font):
         screen.blit(label, (int(px) + 10, int(py) - 10))
 
 
+def draw_scaled(canvas, screen, window_size):
+    scaled = pygame.transform.smoothscale(canvas, window_size)
+    screen.blit(scaled, (0, 0))
+
+
 # ================= MAIN =================
 def main():
     pygame.init()
 
-    screen = pygame.display.set_mode((WINDOW_WIDTH, HEIGHT))
+    window_size = (WINDOW_WIDTH, HEIGHT)
+    screen = pygame.display.set_mode(window_size, pygame.RESIZABLE)
+    canvas = pygame.Surface((WINDOW_WIDTH, HEIGHT))
     pygame.display.set_caption("STK Live")
 
     font_small = pygame.font.SysFont("Arial", 12, bold=True)
@@ -261,6 +270,12 @@ def main():
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     return
+                if event.type == pygame.VIDEORESIZE:
+                    window_size = (
+                        max(event.w, MIN_WINDOW_WIDTH),
+                        max(event.h, MIN_WINDOW_HEIGHT),
+                    )
+                    screen = pygame.display.set_mode(window_size, pygame.RESIZABLE)
 
             new_track_id = receive_packets(sock, jogadores, current_track_id)
 
@@ -270,11 +285,12 @@ def main():
                     track_surface = build_track_surface(track)
                     current_track_id = new_track_id
 
-            screen.fill(COLOR_BG)
+            canvas.fill(COLOR_BG)
 
-            draw_map(screen, track_surface)
-            draw_leaderboard(screen, jogadores, font_title, font_name, font_kart)
-            draw_players(screen, jogadores, track, font_small)
+            draw_map(canvas, track_surface)
+            draw_leaderboard(canvas, jogadores, font_title, font_name, font_kart)
+            draw_players(canvas, jogadores, track, font_small)
+            draw_scaled(canvas, screen, window_size)
 
             pygame.display.flip()
             clock.tick(60)

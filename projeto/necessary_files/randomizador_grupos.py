@@ -8,6 +8,8 @@ import pygame
 
 WINDOW_WIDTH = 1500
 WINDOW_HEIGHT = 920
+MIN_WINDOW_WIDTH = 900
+MIN_WINDOW_HEIGHT = 560
 FPS = 60
 MAX_PARTICIPANTS = 32
 INPUT_COLS = 4
@@ -73,15 +75,15 @@ class Button:
         self.label = label
         self.accent = accent
 
-    def is_hovered(self):
-        return self.rect.collidepoint(pygame.mouse.get_pos())
+    def is_hovered(self, mouse_pos=None):
+        return self.rect.collidepoint(mouse_pos or pygame.mouse.get_pos())
 
-    def draw(self, surface, font):
+    def draw(self, surface, font, mouse_pos=None):
         if self.accent:
-            color = ACCENT_HOVER if self.is_hovered() else ACCENT_COLOR
+            color = ACCENT_HOVER if self.is_hovered(mouse_pos) else ACCENT_COLOR
             text_color = (20, 20, 20)
         else:
-            color = (70, 76, 90) if self.is_hovered() else (58, 63, 76)
+            color = (70, 76, 90) if self.is_hovered(mouse_pos) else (58, 63, 76)
             text_color = TEXT_COLOR
 
         pygame.draw.rect(surface, color, self.rect, border_radius=10)
@@ -199,10 +201,32 @@ def draw_groups(screen, groups_panel, title_font, group_title_font, name_font, g
             screen.blit(line, (card.x + 18, card.y + 54 + member_index * 32))
 
 
+def scale_pos(pos, window_size):
+    return (
+        int(pos[0] * WINDOW_WIDTH / window_size[0]),
+        int(pos[1] * WINDOW_HEIGHT / window_size[1]),
+    )
+
+
+def scale_mouse_event(event, window_size):
+    if hasattr(event, "pos"):
+        values = event.dict.copy()
+        values["pos"] = scale_pos(event.pos, window_size)
+        return pygame.event.Event(event.type, values)
+    return event
+
+
+def draw_scaled(canvas, screen, window_size):
+    scaled = pygame.transform.smoothscale(canvas, window_size)
+    screen.blit(scaled, (0, 0))
+
+
 def main():
     pygame.init()
     pygame.display.set_caption("Randomizador de Grupos")
-    screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
+    window_size = (WINDOW_WIDTH, WINDOW_HEIGHT)
+    screen = pygame.display.set_mode(window_size, pygame.RESIZABLE)
+    canvas = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT))
     clock = pygame.time.Clock()
 
     title_font = pygame.font.SysFont("Segoe UI", 32, bold=True)
@@ -230,7 +254,19 @@ def main():
     status_color = MUTED_COLOR
 
     while True:
-        for event in pygame.event.get():
+        virtual_mouse_pos = scale_pos(pygame.mouse.get_pos(), window_size)
+
+        for raw_event in pygame.event.get():
+            if raw_event.type == pygame.VIDEORESIZE:
+                window_size = (
+                    max(raw_event.w, MIN_WINDOW_WIDTH),
+                    max(raw_event.h, MIN_WINDOW_HEIGHT),
+                )
+                screen = pygame.display.set_mode(window_size, pygame.RESIZABLE)
+                continue
+
+            event = scale_mouse_event(raw_event, window_size)
+
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
@@ -299,29 +335,30 @@ def main():
                 status_message = "Campos limpos. Define novamente o numero de participantes."
                 status_color = MUTED_COLOR
 
-        screen.fill(BG_COLOR)
+        canvas.fill(BG_COLOR)
 
-        pygame.draw.rect(screen, PANEL_COLOR, input_panel, border_radius=18)
-        pygame.draw.rect(screen, PANEL_ALT, groups_panel, border_radius=18)
+        pygame.draw.rect(canvas, PANEL_COLOR, input_panel, border_radius=18)
+        pygame.draw.rect(canvas, PANEL_ALT, groups_panel, border_radius=18)
 
         title = title_font.render("Participantes", True, TEXT_COLOR)
-        screen.blit(title, (input_panel.x + 24, input_panel.y + 22))
+        canvas.blit(title, (input_panel.x + 24, input_panel.y + 22))
 
         total_label = subtitle_font.render("Numero de participantes (2-32)", True, TEXT_COLOR)
-        screen.blit(total_label, (input_panel.x + 24, input_panel.y + 76))
-        total_input.draw(screen, font, small_font, 0)
-        set_total_button.draw(screen, button_font)
+        canvas.blit(total_label, (input_panel.x + 24, input_panel.y + 76))
+        total_input.draw(canvas, font, small_font, 0)
+        set_total_button.draw(canvas, button_font, virtual_mouse_pos)
 
         for i, input_box in enumerate(inputs, start=1):
-            input_box.draw(screen, font, small_font, i)
+            input_box.draw(canvas, font, small_font, i)
 
-        random_button.draw(screen, button_font)
-        clear_button.draw(screen, button_font)
+        random_button.draw(canvas, button_font, virtual_mouse_pos)
+        clear_button.draw(canvas, button_font, virtual_mouse_pos)
 
         status = subtitle_font.render(status_message, True, status_color)
-        screen.blit(status, (input_panel.x + 24, input_panel.bottom - 30))
+        canvas.blit(status, (input_panel.x + 24, input_panel.bottom - 30))
 
-        draw_groups(screen, groups_panel, title_font, group_title_font, name_font, groups)
+        draw_groups(canvas, groups_panel, title_font, group_title_font, name_font, groups)
+        draw_scaled(canvas, screen, window_size)
 
         pygame.display.flip()
         clock.tick(FPS)
