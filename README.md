@@ -122,14 +122,14 @@ Exemplo com o `my.xml`:
 
 ```bash
 cd /home/victor/Documents/GLUA/STK_Project/projeto/stk-code/build-server
-./bin/supertuxkart --server-config=my.xml --lan-server=pilinha --network-console
+./bin/supertuxkart --server-config=my.xml --lan-server=torneio1 --network-console
 ```
 
 Segundo exemplo com `other.xml`:
 
 ```bash
 cd /home/victor/Documents/GLUA/STK_Project/projeto/stk-code/build-server
-./bin/supertuxkart --server-config=other.xml --lan-server=pilinha2 --network-console
+./bin/supertuxkart --server-config=other.xml --lan-server=torneio2 --network-console
 ```
 
 ## Usar o cliente simples: `make3.py`
