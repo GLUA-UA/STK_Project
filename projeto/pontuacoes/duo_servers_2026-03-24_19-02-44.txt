@@ -1,0 +1,22 @@
+saved_at: 2026-03-24T19:02:44
+
+[Server 1] track=gran_paradiso_island
+1. nome=francisco kart=beastie pos=1 x=-131.953 z=47.838
+2. nome=Santiago kart=pidgin pos=2 x=-86.621 z=127.604
+3. nome=carlao kart=adiumy pos=3 x=-65.021 z=123.507
+4. nome=Diomasso kart=suzanne pos=4 x=-49.005 z=119.743
+5. nome=Lur1y_08 kart=pidgin pos=5 x=3.303 z=125.378
+6. nome=Bohdan kart=tux pos=6 x=29.391 z=136.534
+7. nome=luca.z kart=tux pos=7 x=57.515 z=151.743
+8. nome=Arthur kart=pidgin pos=8 x=137.059 z=88.433
+
+[Server 2] track=gran_paradiso_island
+1. nome=vasco f kart=pidgin pos=1 x=-11.553 z=119.511
+2. nome=Miguel kart=puffy pos=2 x=0.140 z=123.894
+3. nome=Vasco O kart=puffy pos=3 x=14.730 z=131.277
+4. nome=Tiago kart=addon_af83 pos=4 x=87.748 z=150.353
+5. nome=Rita kart=pidgin pos=5 x=104.985 z=125.545
+6. nome=Cauchie kart=kiki pos=6 x=112.941 z=109.304
+7. nome=joao kart=tux pos=7 x=120.344 z=101.525
+8. nome=alpless kart=addon_mcl23_2 pos=8 x=138.590 z=89.527
+

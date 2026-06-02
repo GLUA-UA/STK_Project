@@ -1,0 +1,7 @@
+track: cocoa_temple
+saved_at: 2026-03-24T19:36:08
+
+1. nome=Tiago kart=addon_af83 pos=1 x=138.253 z=73.768
+2. nome=Miguel kart=puffy pos=2 x=111.266 z=40.048
+3. nome=vasco f kart=pidgin pos=3 x=80.351 z=42.171
+4. nome=Santiago kart=pidgin pos=4 x=24.247 z=42.710

@@ -1,0 +1,5 @@
+track: sandtrack
+saved_at: 2026-03-24T19:39:14
+
+1. nome=Santiago kart=pidgin pos=1 x=0.246 z=75.075
+2. nome=Miguel kart=puffy pos=2 x=1.759 z=8.191

@@ -1,0 +1,7 @@
+track: cornfield_crossing
+saved_at: 2026-03-24T19:32:17
+
+1. nome=vasco f kart=pidgin pos=1 x=0.589 z=75.821
+2. nome=Santiago kart=pidgin pos=2 x=0.140 z=68.746
+3. nome=Tiago kart=addon_af83 pos=3 x=-0.048 z=55.635
+4. nome=Miguel kart=puffy pos=4 x=-1.622 z=18.552

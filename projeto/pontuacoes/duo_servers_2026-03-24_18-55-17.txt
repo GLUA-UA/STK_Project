@@ -1,0 +1,22 @@
+saved_at: 2026-03-24T18:55:17
+
+[Server 1] track=olivermath
+1. nome=Santiago kart=pidgin pos=1 x=-29.361 z=75.788
+2. nome=joao kart=tux pos=2 x=40.984 z=33.599
+3. nome=alpless kart=addon_mcl23_2 pos=3 x=41.494 z=32.007
+4. nome=Cauchie kart=kiki pos=4 x=21.434 z=-14.023
+5. nome=Rita kart=pidgin pos=5 x=22.837 z=-13.777
+6. nome=Tiago kart=addon_af83 pos=6 x=19.759 z=-11.194
+7. nome=luca.z kart=gavroche pos=7 x=16.194 z=-5.794
+8. nome=Lur1y_08 kart=pidgin pos=8 x=-8.421 z=-6.325
+
+[Server 2] track=olivermath
+1. nome=vasco f kart=pidgin pos=1 x=-42.203 z=64.670
+2. nome=Miguel kart=puffy pos=2 x=-37.715 z=71.560
+3. nome=carlao kart=adiumy pos=3 x=-15.919 z=77.986
+4. nome=Diomasso kart=suzanne pos=4 x=18.323 z=54.717
+5. nome=francisco kart=beastie pos=5 x=28.703 z=47.411
+6. nome=Vasco O kart=puffy pos=6 x=31.374 z=45.496
+7. nome=Arthur kart=pidgin pos=7 x=40.330 z=0.704
+8. nome=Bohdan kart=tux pos=8 x=-11.121 z=-6.179
+

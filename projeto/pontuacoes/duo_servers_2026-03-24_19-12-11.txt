@@ -1,0 +1,22 @@
+saved_at: 2026-03-24T19:12:11
+
+[Server 1] track=mines
+1. nome=Tiago kart=addon_af83 pos=1 x=152.364 z=2.452
+2. nome=carlao kart=adiumy pos=2 x=140.732 z=13.705
+3. nome=Cauchie kart=kiki pos=3 x=128.746 z=21.515
+4. nome=vasco f kart=pidgin pos=4 x=114.950 z=28.142
+5. nome=Santiago kart=pidgin pos=5 x=75.474 z=39.901
+6. nome=Lur1y_08 kart=pidgin pos=6 x=58.245 z=43.569
+7. nome=luca.z kart=wilber pos=7 x=40.429 z=47.153
+8. nome=francisco kart=beastie pos=8 x=-0.443 z=8.249
+
+[Server 2] track=mines
+1. nome=Miguel kart=puffy pos=1 x=162.572 z=-19.902
+2. nome=Vasco O kart=puffy pos=2 x=159.782 z=-11.054
+3. nome=Diomasso kart=suzanne pos=3 x=83.821 z=38.075
+4. nome=Arthur kart=pidgin pos=4 x=55.639 z=44.132
+5. nome=alpless kart=addon_mcl23_2 pos=5 x=35.540 z=47.933
+6. nome=Bohdan kart=tux pos=6 x=1.267 z=17.190
+7. nome=Rita kart=pidgin pos=7 x=2.101 z=15.288
+8. nome=joao kart=tux pos=8 x=-0.270 z=8.195
+
