@@ -1,0 +1,4 @@
+track: scotland
+saved_at: 2026-06-02T23:00:05
+
+1. nome=victor_m kart=pidgin pos=1 x=180.572 z=199.825

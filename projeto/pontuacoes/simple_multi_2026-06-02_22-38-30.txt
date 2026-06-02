@@ -1,0 +1,9 @@
+[Server 1]
+1. nome=victor_m kart=pidgin pos=1
+
+[Server 2]
+
+[Server 3]
+
+[Server 4]
+
