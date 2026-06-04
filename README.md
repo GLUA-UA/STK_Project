@@ -1,89 +1,51 @@
 # SuperTuxKart Live Map Toolkit
 
-Este projecto adiciona uma camada de mapa em tempo real e leaderboard a um
-servidor modificado do SuperTuxKart.
+Este projecto nasceu para ajudar a acompanhar corridas de SuperTuxKart em tempo
+real. A ideia e simples: o servidor do STK envia a posicao dos karts por UDP, e
+os scripts em Python mostram esses karts num mapa 2D com uma leaderboard ao
+lado.
 
-Os scripts em Python recebem dados UDP enviados pelo SuperTuxKart, desenham os
-karts num mapa 2D da pista actual e guardam a classificacao quando a janela e
-fechada.
+Foi feito principalmente a pensar em Linux, torneios locais, LAN parties,
+projectores e computadores diferentes ligados na mesma rede. Os scripts Python
+tambem devem correr em macOS, desde que tenhas Python e `pygame`.
 
-O foco principal deste projecto e Linux. Tambem deve funcionar em macOS para os
-scripts Python, desde que o SuperTuxKart modificado consiga ser compilado nesse
-sistema.
+## O Que Esta Aqui
 
-## Estrutura do Projecto
+Os ficheiros principais estao dentro da pasta `projeto/`:
 
-| Caminho | Funcao |
-| --- | --- |
-| `projeto/live_map.py` | Cliente principal para ver um servidor. |
-| `projeto/live_map_duo.py` | Dashboard para dois servidores. |
-| `projeto/live_map_quad.py` | Dashboard para ate quatro servidores. |
-| `projeto/stk-code/` | Codigo-fonte do SuperTuxKart com a alteracao UDP. |
-| `projeto/stk-assets/` | Assets do SuperTuxKart usados para desenhar as pistas. |
-| `projeto/stk-code/src/modes/world.cpp` | Ficheiro do STK alterado para enviar telemetria por UDP. |
-| `projeto/necessary_files/for_server/` | Copias de referencia de ficheiros uteis para o servidor. |
-| `projeto/necessary_files/randomizador_grupos.py` | Ferramenta opcional para criar grupos aleatorios. |
-| `projeto/pontuacoes/` | Classificacoes guardadas pelos scripts. |
+- `live_map.py` mostra um servidor.
+- `live_map_duo.py` mostra dois servidores.
+- `live_map_quad.py` mostra quatro servidores.
+- `stk-code/` tem o codigo do SuperTuxKart modificado.
+- `stk-assets/` tem as pistas e assets usados para desenhar os mapas.
+- `pontuacoes/` guarda as classificacoes quando fechas os viewers.
 
-## Como Funciona
-
-O SuperTuxKart modificado envia uma mensagem UDP por cada kart durante a corrida.
-O script Python recebe essas mensagens e procura a pista localmente em:
+O ficheiro importante do lado do SuperTuxKart e:
 
 ```text
-projeto/stk-assets/tracks/<track_id>/quads.xml
+projeto/stk-code/src/modes/world.cpp
 ```
 
-Depois transforma esse ficheiro num mapa 2D e desenha os jogadores por cima.
+E nele que o STK foi alterado para enviar os dados dos jogadores.
 
-Formato actual da mensagem UDP:
+## Como Isto Funciona
+
+Durante a corrida, o STK envia mensagens neste formato:
 
 ```text
 track|nome|kart|x|z|pos
 ```
 
-Exemplo:
+O script usa o `track` para abrir o mapa local em:
 
 ```text
-lighthouse|player1|tux|12.53|84.12|2
+projeto/stk-assets/tracks/<track_id>/quads.xml
 ```
 
-Campos:
+Depois desenha a pista, coloca os jogadores nas coordenadas `x` e `z`, e ordena
+a leaderboard usando o campo `pos`.
 
-| Campo | Significado |
-| --- | --- |
-| `track` | Identificador da pista no SuperTuxKart. |
-| `nome` | Nome do jogador/controlador. |
-| `kart` | Identificador do kart. |
-| `x` | Coordenada X no mundo do STK. |
-| `z` | Coordenada Z no mundo do STK. |
-| `pos` | Posicao actual na corrida. |
-
-## Requisitos
-
-Para os scripts Python:
-
-- Python 3
-- `pygame`
-- Pasta `projeto/stk-assets/`
-- Acesso de rede ao computador que corre o servidor STK
-
-Para o servidor:
-
-- Codigo modificado em `projeto/stk-code/`
-- CMake
-- Compilador C++
-- Dependencias normais do SuperTuxKart para Linux ou macOS
-
-As dependencias exactas do SuperTuxKart dependem do sistema. Para mais detalhe,
-consulta:
-
-```text
-projeto/stk-code/INSTALL.md
-projeto/stk-code/README.md
-```
-
-## Instalar Dependencias Python
+## Preparar o Python
 
 Na raiz do repositorio:
 
@@ -94,38 +56,33 @@ python3 -m pip install --upgrade pip
 python3 -m pip install pygame
 ```
 
-Se nao quiseres usar ambiente virtual, podes instalar o `pygame` directamente no
-teu Python normal.
+Se preferires, tambem podes instalar o `pygame` directamente no teu Python
+normal.
 
-## Compilar o SuperTuxKart Modificado
+## Compilar o STK Modificado
 
-Fluxo geral:
+O projecto precisa do SuperTuxKart compilado com a alteracao no `world.cpp`.
+Um fluxo normal e:
 
 ```bash
 cd projeto/stk-code
 cmake -S . -B build-server -DCMAKE_BUILD_TYPE=Debug -DNO_SHADERC=on
-cmake --build build-server
-```
-
-Em Linux, podes acelerar a compilacao com:
-
-```bash
 cmake --build build-server -j"$(nproc)"
 ```
 
-Em macOS:
+Em macOS, troca o ultimo comando por:
 
 ```bash
 cmake --build build-server -j"$(sysctl -n hw.ncpu)"
 ```
 
-O executavel fica normalmente em:
+Se precisares de detalhes sobre dependencias do STK, ve:
 
 ```text
-projeto/stk-code/build-server/bin/
+projeto/stk-code/INSTALL.md
 ```
 
-## Arrancar o Servidor STK
+## Arrancar o Servidor
 
 Exemplo:
 
@@ -134,214 +91,112 @@ cd projeto/stk-code/build-server
 ./bin/supertuxkart --server-config=my.xml --lan-server=torneio1 --network-console
 ```
 
-Existe uma configuracao de referencia em:
+Ha uma configuracao de referencia em:
 
 ```text
 projeto/necessary_files/for_server/my.xml
 ```
 
-Se `my.xml` nao existir na pasta `build-server`, copia esse ficheiro ou cria uma
-configuracao equivalente.
+Se `my.xml` nao existir na tua pasta `build-server`, copia esse ficheiro para la
+ou cria uma configuracao equivalente.
 
-## Portas UDP
+## Usar os Viewers
 
-O `world.cpp` modificado usa portas fixas:
-
-| Porta | Direccao | Funcao |
-| --- | --- | --- |
-| `9998/udp` | Python para STK | O cliente envia `MAP_CONNECT`. |
-| `9999/udp` | STK para Python | O servidor envia posicoes dos karts. |
-
-Se o servidor e o cliente estiverem em computadores diferentes, confirma que a
-firewall permite estas portas UDP.
-
-## Usar o Cliente de Um Servidor
+Para ver um servidor:
 
 ```bash
 cd projeto
 python3 live_map.py
 ```
 
-Por defeito, o script usa:
-
-| Opcao | Valor |
-| --- | --- |
-| IP do servidor | `127.0.0.1` |
-| Porta do servidor | `9998` |
-| Porta local do cliente | `9999` |
-
-Se o servidor STK estiver noutro computador, altera `SERVER_IP` no topo de
-`projeto/live_map.py`.
-
-## Usar os Dashboards Multi-Servidor
-
-Para dois servidores:
+Para ver dois servidores:
 
 ```bash
-cd projeto
 python3 live_map_duo.py
 ```
 
-Para ate quatro servidores:
+Para ver quatro servidores:
 
 ```bash
-cd projeto
 python3 live_map_quad.py
 ```
 
-Antes de executar, edita `SERVER_CONFIGS` no topo do script.
+Se o servidor estiver noutro computador, muda o IP no topo do script. Nos
+scripts multi-servidor, muda a lista `SERVER_CONFIGS`.
 
-Exemplo para `live_map_duo.py`:
+As portas usadas sao:
 
-```python
-UDP_PORT = 9999
+- `9998/udp` para o Python pedir dados ao STK.
+- `9999/udp` para o STK enviar os dados de volta ao Python.
 
-SERVER_CONFIGS = [
-    {"label": "Servidor 1", "server_ip": "127.0.0.1", "server_port": 9998},
-    {"label": "Servidor 2", "server_ip": "192.168.1.20", "server_port": 9998},
-]
-```
+Se estiveres a usar computadores diferentes, confirma que a firewall deixa essas
+portas passar.
 
-Exemplo para `live_map_quad.py`:
-
-```python
-SERVER_CONFIGS = [
-    {"label": "Servidor 1", "server_ip": "127.0.0.1", "server_port": 9998, "client_port": 9999},
-    {"label": "Servidor 2", "server_ip": "192.168.1.20", "server_port": 9998, "client_port": 9999},
-]
-```
-
-O importante e:
-
-| Campo | Significado |
-| --- | --- |
-| `label` | Nome que aparece no dashboard. |
-| `server_ip` | IP do computador que corre esse servidor STK. |
-| `server_port` | Porta UDP onde o STK recebe `MAP_CONNECT`. |
-| `client_port` | Porta UDP local usada pelo dashboard `live_map_quad.py`. |
-
-Os dashboards usam uma porta local partilhada, normalmente `9999`.
-
-## Janelas Redimensionaveis
-
-As janelas dos scripts principais podem ser redimensionadas:
-
-- `live_map.py`
-- `live_map_duo.py`
-- `live_map_quad.py`
-- `necessary_files/randomizador_grupos.py`
-
-O conteudo escala com o tamanho da janela. Isto ajuda quando o projecto e usado
-em portateis, monitores externos, projectores ou ecras com resolucoes diferentes.
-
-## Descobrir o IP do Servidor
-
-Linux:
+Para descobrir o IP do servidor em Linux:
 
 ```bash
 hostname -I
 ```
 
-macOS:
+Em macOS:
 
 ```bash
 ipconfig getifaddr en0
 ```
 
-Usa o IP da rede onde tambem esta o computador que vai correr o script Python.
+## Pontuacoes
 
-## Firewall
-
-Em Linux, se necessario:
-
-```bash
-sudo firewall-cmd --add-port=9998/udp
-sudo firewall-cmd --add-port=9999/udp
-```
-
-Em macOS, aceita o pedido de permissao de rede se o sistema mostrar uma janela.
-
-## Guardar Pontuacoes
-
-Quando fechas `live_map.py`, `live_map_duo.py` ou `live_map_quad.py`, o script guarda a
-classificacao actual em:
+Quando fechas um viewer, ele guarda a classificacao actual em:
 
 ```text
 projeto/pontuacoes/
 ```
 
+Isto e util para guardar um registo rapido do fim da corrida ou do estado da
+leaderboard.
+
 ## Randomizador de Grupos
 
-Esta ferramenta e opcional e nao precisa do servidor STK.
+Tambem existe uma ferramenta simples para criar grupos aleatorios:
 
 ```bash
 cd projeto/necessary_files
 python3 randomizador_grupos.py
 ```
 
-Serve para introduzir participantes e criar grupos aleatorios.
+Ela e independente do STK. Serve so para ajudar a organizar participantes.
 
-## Ficheiros Que Nao Sao Necessarios
+## Se Algo Nao Funcionar
+
+Se a janela abrir mas nao aparecer mapa, normalmente ainda nao chegaram pacotes
+do servidor, o IP esta errado, a firewall bloqueou as portas, ou a pista nao
+existe em `stk-assets/tracks/`.
+
+Se aparecer `Track nao encontrada`, o script recebeu uma pista que nao existe
+localmente nos assets.
+
+Se aparecer `Address already in use`, ja tens outro viewer ou outro processo a
+usar a porta `9999`.
+
+Se nao aparecerem jogadores, confirma que estas mesmo a correr o STK compilado
+com o `world.cpp` modificado. Um servidor normal do SuperTuxKart nao envia estes
+dados UDP.
+
+## Notas
 
 `projeto/necessary_files/make4_testing.py` nao e necessario para correr o
-projecto. Era uma copia/teste do dashboard de quatro servidores. O ficheiro activo
-deve ser:
+projecto. Era uma copia/teste antiga. O viewer de quatro servidores actual e:
 
 ```text
 projeto/live_map_quad.py
 ```
 
-`projeto/necessary_files/pontuacoes/` tambem nao e necessario. Essa pasta so tem
-ficheiros locais do macOS e nao e usada pelos scripts activos.
-
-## Problemas Comuns
-
-### A janela abre mas nao aparece mapa
-
-Verifica:
-
-- se a corrida ja comecou no servidor;
-- se o IP do servidor esta correcto;
-- se as portas UDP `9998` e `9999` estao livres;
-- se a pista existe em `projeto/stk-assets/tracks/`.
-
-### `Track nao encontrada`
-
-O script recebeu uma pista que nao existe localmente em:
-
-```text
-projeto/stk-assets/tracks/<track_id>/quads.xml
-```
-
-Usa uma pista existente nos assets ou adiciona os assets em falta.
-
-### `Address already in use`
-
-Outro processo ja esta a usar a porta UDP, normalmente `9999`.
-
-Fecha outro viewer aberto ou altera a porta no script e no codigo UDP do STK.
-
-### Nao aparecem jogadores
-
-Provavelmente o servidor que esta a correr nao foi compilado com o `world.cpp`
-modificado. Um servidor normal do SuperTuxKart nao envia estes pacotes UDP.
-
-## Fluxo Recomendado
-
-1. Instalar Python 3 e `pygame`.
-2. Compilar o SuperTuxKart modificado em `projeto/stk-code/`.
-3. Copiar ou preparar `my.xml` na pasta `build-server`.
-4. Arrancar o servidor STK.
-5. Comecar uma corrida.
-6. Executar `live_map.py`, `live_map_duo.py` ou `live_map_quad.py`.
-7. Fechar a janela no fim para guardar a classificacao.
+`projeto/necessary_files/pontuacoes/` tambem nao e usado pelos scripts actuais.
 
 ## Licenca
 
 Este projecto inclui e modifica codigo do SuperTuxKart. O SuperTuxKart esta sob
 a licenca GNU GPLv3.
-
-Consulta:
 
 ```text
 projeto/stk-code/COPYING
@@ -349,8 +204,9 @@ projeto/stk-code/COPYING
 
 ## Agradecimento
 
-Espero que este projecto ajude a criar bons momentos e que traga alguma felicidade a este mundo em que vivemos.
+Espero que este projecto ajude a criar bons momentos e que traga alguma
+felicidade a este mundo em que vivemos.
 
-Obrigado ao GLUA e à equipa por detrás do STK :)
+Obrigado ao GLUA e a equipa por detras do STK :)
 
 Obrigado a ti por jogares!
