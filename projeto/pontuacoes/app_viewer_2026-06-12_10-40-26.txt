@@ -1,4 +1,0 @@
-[Server 1] ip=127.0.0.1 track=unknown
-
-[Server 2] ip=127.0.0.1 track=unknown
-

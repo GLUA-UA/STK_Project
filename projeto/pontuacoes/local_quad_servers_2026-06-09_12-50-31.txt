@@ -1,8 +1,0 @@
-[Server 1] server_port=9998 client_port=9999 track=unknown
-
-[Server 2] server_port=10008 client_port=10009 track=unknown
-
-[Server 3] server_port=10018 client_port=10019 track=unknown
-
-[Server 4] server_port=10028 client_port=10029 track=unknown
-

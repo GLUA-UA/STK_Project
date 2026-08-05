@@ -1,8 +1,0 @@
-[Server 1] track=unknown
-
-[Server 2] track=unknown
-
-[Server 3] track=unknown
-
-[Server 4] track=unknown
-
