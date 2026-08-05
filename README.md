@@ -124,6 +124,12 @@ python3 live_map_quad.py
 Se o servidor estiver noutro computador, muda o IP no topo do script. Nos
 scripts multi-servidor, muda a lista `SERVER_CONFIGS`.
 
+Aviso importante: os viewers multi-servidor foram pensados para servidores em
+computadores diferentes, cada um com o seu IP. Com o codigo actual do STK, varios
+servidores na mesma maquina nao funcionam bem, porque a telemetria esta fixa nas
+portas `9998` e `9999`. Sem mudar o codigo UDP do STK, o recomendado e usar uma
+maquina por servidor.
+
 As portas usadas sao:
 
 - `9998/udp` para o Python pedir dados ao STK.
