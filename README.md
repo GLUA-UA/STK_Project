@@ -80,6 +80,15 @@ pontuações; não alteram o nome configurado no servidor STK. Os grupos ficam
 apenas em memória e não são enviados ao STK. Usa a roda do rato para percorrer
 participantes, grupos ou classificações que não caibam no ecrã.
 
+Em **Configurar grupos**, podes preparar entre 2 e 32 campos de participantes
+e escolher entre 1 e 16 grupos. Só os nomes preenchidos entram na distribuição;
+são necessários pelo menos dois. Os resultados aparecem no ecrã e no terminal.
+Esta é a ferramenta atual de organização de grupos do projeto.
+
+Mantém o terminal aberto para acompanhar os servidores selecionados, os pedidos
+UDP, a primeira receção de dados, as pistas, os novos jogadores e os erros.
+O menu não imprime cada pacote nem inicia corridas: estas são iniciadas no STK.
+
 O código do menu está dividido em três ficheiros:
 
 - `app_menu.py`: eventos, navegação e organização dos participantes.
@@ -172,17 +181,6 @@ forem guardados no mesmo segundo, acrescenta um número ao nome.
 
 Isto e util para guardar um registo rapido do fim da corrida ou do estado da
 leaderboard.
-
-## Randomizador de Grupos
-
-Tambem existe uma ferramenta simples para criar grupos aleatorios:
-
-```bash
-cd projeto/necessary_files
-python3 randomizador_grupos.py
-```
-
-Ela e independente do STK. Serve so para ajudar a organizar participantes.
 
 ## Se Algo Nao Funcionar
 
