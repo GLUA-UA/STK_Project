@@ -2,23 +2,21 @@
 
 Este projecto nasceu para ajudar a acompanhar corridas de SuperTuxKart em tempo
 real. A ideia e simples: o servidor do STK envia a posicao dos karts por UDP, e
-os scripts em Python mostram esses karts num mapa 2D com uma leaderboard ao
-lado.
+o menu em Python mostra esses karts num mapa 2D com a classificação ao lado.
+Também permite organizar participantes em grupos.
 
 Foi feito principalmente a pensar em Linux, torneios locais, LAN parties,
 projectores e computadores diferentes ligados na mesma rede. Os scripts Python
-tambem devem correr em macOS, desde que tenhas Python e `pygame`.
+tambem devem correr em macOS, desde que tenhas Python e `pygame-ce`.
 
 ## O Que Esta Aqui
 
 Os ficheiros principais estao dentro da pasta `projeto/`:
 
-- `live_map.py` mostra um servidor.
-- `live_map_duo.py` mostra dois servidores.
-- `live_map_quad.py` mostra quatro servidores.
+- `app_menu/` contém o menu para um, dois ou quatro servidores.
 - `stk-code/` tem o codigo do SuperTuxKart modificado.
 - `stk-assets/` tem as pistas e assets usados para desenhar os mapas.
-- `pontuacoes/` guarda as classificacoes quando fechas os viewers.
+- `pontuacoes/` guarda as classificações quando sais do mapa.
 
 O ficheiro importante do lado do SuperTuxKart e:
 
@@ -45,19 +43,52 @@ projeto/stk-assets/tracks/<track_id>/quads.xml
 Depois desenha a pista, coloca os jogadores nas coordenadas `x` e `z`, e ordena
 a leaderboard usando o campo `pos`.
 
-## Preparar o Python
+## Preparar e abrir o menu
 
-Na raiz do repositorio:
+Requisitos: Python 3, `pygame-ce` 2.5.7 ou superior e as pistas em
+`projeto/stk-assets/tracks/`. Para receber dados, precisas do servidor STK
+modificado descrito abaixo. O menu não inicia o servidor STK.
+
+Se já tens uma `.venv` a funcionar, usa-a. Para criar uma pela primeira vez,
+na raiz do repositório:
 
 ```bash
 python3 -m venv .venv
-source .venv/bin/activate
-python3 -m pip install --upgrade pip
-python3 -m pip install pygame
+.venv/bin/python -m pip install "pygame-ce>=2.5.7"
 ```
 
-Se preferires, tambem podes instalar o `pygame` directamente no teu Python
-normal.
+O `pygame-ce` fornece o módulo `pygame`, incluindo o carregamento de SVG e o
+suporte Retina usado pelo menu. Não instales `pygame` e `pygame-ce` juntos
+na mesma venv. Os SVG originais ficam em `app_menu/images/`; não é necessário
+CairoSVG.
+
+Para abrir o menu, na raiz do repositório:
+
+```bash
+.venv/bin/python projeto/app_menu/app_menu.py
+```
+
+1. Escolhe 1, 2 ou 4 servidores e indica os nomes e IPs ou endereços.
+2. Em **Configurar grupos**, indica os participantes, os nomes e o número de
+   grupos. Usa **Randomizar** para distribuir os nomes preenchidos.
+3. Volta ao menu e usa **Iniciar mapa** com o servidor STK já a correr.
+4. **Voltar**, Escape ou fechar a janela guarda a classificação atual em
+   `projeto/pontuacoes/`. Escape no menu fecha a aplicação.
+
+Os nomes dos servidores no menu identificam os mapas e os ficheiros de
+pontuações; não alteram o nome configurado no servidor STK. Os grupos ficam
+apenas em memória e não são enviados ao STK. Usa a roda do rato para percorrer
+participantes, grupos ou classificações que não caibam no ecrã.
+
+O código do menu está dividido em três ficheiros:
+
+- `app_menu.py`: eventos, navegação e organização dos participantes.
+- `menu_ui.py`: botões, campos, SVG e desenho dos ecrãs.
+- `stk_viewer.py`: UDP, leitura de pistas e gravação de pontuações.
+
+Para mudar os nomes dos botões, começa em `MenuApp.__init__` no `app_menu.py`.
+Os ecrãs estão nas funções `draw_menu`, `draw_groups` e `draw_viewer` do
+`menu_ui.py`. O formato dos pacotes está em `parse_packet` no `stk_viewer.py`.
 
 ## Compilar o STK Modificado
 
@@ -100,35 +131,12 @@ projeto/necessary_files/for_server/my.xml
 Se `my.xml` nao existir na tua pasta `build-server`, copia esse ficheiro para la
 ou cria uma configuracao equivalente.
 
-## Usar os Viewers
+## Rede
 
-Para ver um servidor:
-
-```bash
-cd projeto
-python3 live_map.py
-```
-
-Para ver dois servidores:
-
-```bash
-python3 live_map_duo.py
-```
-
-Para ver quatro servidores:
-
-```bash
-python3 live_map_quad.py
-```
-
-Se o servidor estiver noutro computador, muda o IP no topo do script. Nos
-scripts multi-servidor, muda a lista `SERVER_CONFIGS`.
-
-Aviso importante: os viewers multi-servidor foram pensados para servidores em
-computadores diferentes, cada um com o seu IP. Com o codigo actual do STK, varios
-servidores na mesma maquina nao funcionam bem, porque a telemetria esta fixa nas
-portas `9998` e `9999`. Sem mudar o codigo UDP do STK, o recomendado e usar uma
-maquina por servidor.
+No menu, escolhe o número de servidores e escreve os respetivos IPs ou
+endereços. Usa um computador por servidor: a telemetria do STK usa portas
+fixas, pelo que vários servidores na mesma máquina entram em conflito.
+Abre apenas um menu por computador para receber os dados.
 
 As portas usadas sao:
 
@@ -152,11 +160,15 @@ ipconfig getifaddr en0
 
 ## Pontuacoes
 
-Quando fechas um viewer, ele guarda a classificacao actual em:
+Quando sais do mapa no menu, é guardada a classificação atual em:
 
 ```text
 projeto/pontuacoes/
 ```
+
+O menu cria ficheiros `app_viewer_<data>_<hora>.txt`, com o nome e IP de cada
+servidor, a pista e os jogadores ordenados pela posição. Se dois ficheiros
+forem guardados no mesmo segundo, acrescenta um número ao nome.
 
 Isto e util para guardar um registo rapido do fim da corrida ou do estado da
 leaderboard.
@@ -178,26 +190,15 @@ Se a janela abrir mas nao aparecer mapa, normalmente ainda nao chegaram pacotes
 do servidor, o IP esta errado, a firewall bloqueou as portas, ou a pista nao
 existe em `stk-assets/tracks/`.
 
-Se aparecer `Track nao encontrada`, o script recebeu uma pista que nao existe
-localmente nos assets.
+Se aparecer `Mapa indisponível`, confirma que existe o `quads.xml` da pista
+recebida em `projeto/stk-assets/tracks/` e que o XML é válido.
 
-Se aparecer `Address already in use`, ja tens outro viewer ou outro processo a
+Se aparecer `Address already in use`, já tens outro menu ou outro processo a
 usar a porta `9999`.
 
 Se nao aparecerem jogadores, confirma que estas mesmo a correr o STK compilado
 com o `world.cpp` modificado. Um servidor normal do SuperTuxKart nao envia estes
 dados UDP.
-
-## Notas
-
-`projeto/necessary_files/make4_testing.py` nao e necessario para correr o
-projecto. Era uma copia/teste antiga. O viewer de quatro servidores actual e:
-
-```text
-projeto/live_map_quad.py
-```
-
-`projeto/necessary_files/pontuacoes/` tambem nao e usado pelos scripts actuais.
 
 ## Licenca
 
