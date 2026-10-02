@@ -15,6 +15,7 @@ CLIENT_PORT = 9999
 
 def load_track(track_id):
     path = os.path.join(ASSETS_DIR, track_id, "quads.xml")
+    print("[XML] Ler pista:", path)
     if not os.path.exists(path):
         return None
 
@@ -100,8 +101,17 @@ class Viewer:
 
     def open(self, servers):
         self.states = []
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            sock.bind(("0.0.0.0", CLIENT_PORT))
+            sock.setblocking(False)
+        except OSError:
+            sock.close()
+            raise
+        self.sock = sock
+        print(f"[UDP] Listener iniciado em 0.0.0.0:{CLIENT_PORT}")
         for server in servers:
-            self.states.append({
+            state = {
                 "label": server["label"],
                 "ip": server["ip"],
                 "address": server["ip"],
@@ -111,24 +121,17 @@ class Viewer:
                 "error": "",
                 "scroll": 0,
                 "board_rect": None,
-            })
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        try:
-            sock.bind(("0.0.0.0", CLIENT_PORT))
-            sock.setblocking(False)
-        except OSError:
-            sock.close()
-            raise
-        self.sock = sock
-        print(f"[UDP] A receber em 0.0.0.0:{CLIENT_PORT}")
-        for state in self.states:
+                "receiving": False,
+                "packet_warning": False,
+            }
+            self.states.append(state)
             try:
                 state["address"] = socket.gethostbyname(state["ip"])
                 sock.sendto(b"MAP_CONNECT", (state["address"], SERVER_PORT))
-                print(f"[PEDIDO] {state['label']} · {state['ip']}:{SERVER_PORT}")
+                print(f"[PEDIDO] {state['label']} · {state['ip']}:{SERVER_PORT} (à espera de dados)")
             except OSError as error:
                 state["error"] = str(error)
-                print(f"[ERRO] {state['label']}: {error}")
+                print(f"[ERRO] {state['label']} · {state['ip']}: {error}")
 
     def close(self):
         try:
@@ -137,6 +140,7 @@ class Viewer:
         finally:
             if self.sock:
                 self.sock.close()
+                print("[UDP] Listener fechado.")
             self.sock = None
             self.states = []
 
@@ -155,27 +159,46 @@ class Viewer:
                 data, address = self.sock.recvfrom(1024)
             except BlockingIOError:
                 return
+            except OSError as error:
+                print("[ERRO UDP] Receção interrompida:", error)
+                self.sock.close()
+                self.sock = None
+                for state in self.states:
+                    state["error"] = f"UDP interrompido: {error}"
+                return
             state = self.find_state(address[0])
             if not state:
                 continue
             packet = parse_packet(data)
             if not packet:
+                if not state["packet_warning"]:
+                    print(f"[AVISO] {state['label']}: pacote inválido ignorado: {data!r}")
+                    state["packet_warning"] = True
                 continue
+            if not state["receiving"]:
+                print(f"[DADOS] Primeira atualização de {state['label']} · {address[0]}")
+                state["receiving"] = True
 
             track_id, name, player = packet
             if track_id != state["track_id"]:
                 state["track_id"] = track_id
+                state["error"] = ""
                 try:
                     state["track"] = load_track(track_id)
                 except (OSError, ET.ParseError, ValueError, KeyError, IndexError) as error:
                     state["track"] = None
+                    state["error"] = str(error)
                     print(f"[ERRO] {state['label']} · pista {track_id}: {error}")
                 print(f"[PISTA] {state['label']} · {track_id}")
                 if state["track"] is None:
+                    if not state["error"]:
+                        state["error"] = "Mapa indisponível: " + track_id
                     print(f"[AVISO] Mapa indisponível: {os.path.join(ASSETS_DIR, track_id, 'quads.xml')}")
                 state["players"].clear()
                 state["scroll"] = 0
 
+            if name not in state["players"]:
+                print(f"[JOGADOR] {state['label']} · {name} · kart={player['kart']} · pos={player['pos']}")
             state["players"][name] = player
 
     def save_scores(self):
@@ -190,11 +213,15 @@ class Viewer:
             suffix += 1
         with open(path, "w", encoding="utf-8") as file:
             for state in self.states:
-                file.write(f"[{state['label']}] ip={state['ip']} track={state['track_id'] or 'unknown'}\n")
+                header = f"[{state['label']}] ip={state['ip']} track={state['track_id'] or 'unknown'}"
+                print(header)
+                file.write(header + "\n")
                 for index, (name, data) in enumerate(sorted_players(state["players"]), start=1):
                     pos = data["pos"]
                     if pos is None:
                         pos = "?"
-                    file.write(f"{index}. nome={name} kart={data['kart']} pos={pos}\n")
+                    line = f"{index}. nome={name} kart={data['kart']} pos={pos}"
+                    print(line)
+                    file.write(line + "\n")
                 file.write("\n")
         print(f"[GUARDADO] {path}")

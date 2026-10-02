@@ -82,7 +82,8 @@ class TextBox:
         if not value:
             value = placeholder
             text_color = MUTED
-        label = font.render(fit_text(font, value, self.rect.width - self.rect.height // 2), True, text_color)
+        value = fit_text(font, value, self.rect.width - self.rect.height // 2)
+        label = font.render(value, True, text_color)
         position = (self.rect.x + self.rect.height // 4, self.rect.centery)
         screen.blit(label, label.get_rect(midleft=position))
 
@@ -90,13 +91,13 @@ class TextBox:
         if event.type == pygame.MOUSEBUTTONDOWN:
             self.active = self.rect.collidepoint(event.pos)
 
-        if event.type == pygame.KEYDOWN and self.active:
+        elif event.type == pygame.KEYDOWN and self.active:
             if event.key == pygame.K_BACKSPACE:
                 self.text = self.text[:-1]
             elif event.key == pygame.K_RETURN:
                 self.active = False
 
-        if event.type == pygame.TEXTINPUT and self.active and len(self.text) < 32:
+        elif event.type == pygame.TEXTINPUT and self.active and len(self.text) < 32:
             self.text += event.text
 
 
@@ -105,9 +106,7 @@ def fit_text(font, text, width):
         return text
     while text and font.size(text + "...")[0] > width:
         text = text[:-1]
-    if text:
-        return text + "..."
-    return "..."
+    return text + "..."
 
 
 def world_to_screen(track, x, z, rect, padding):
@@ -126,7 +125,7 @@ def world_to_screen(track, x, z, rect, padding):
 
 def draw_header(app):
     scale = app.scale
-    width, height = app.window_size
+    width, height = app.screen.get_size()
     left, right = app.content.left, app.content.right
     if app.mode == "viewer":
         left, right = 32 * scale, width - 32 * scale
@@ -145,14 +144,13 @@ def draw_menu(app):
     scale = app.scale
     left, right = app.content.left, app.content.right
     form_height = (204 + app.server_count * 68) * scale
-    top = (app.window_size[1] - form_height) // 2
+    top = (app.screen.get_height() - form_height) // 2
     top = max(112 * scale, top)
     field_width = (app.content.width - 24 * scale) // 2
     second = left + field_width + 24 * scale
     app.screen.blit(app.heading_font.render("Mapa da corrida", True, TEXT), (left, top))
     app.screen.blit(app.font.render("Número de servidores", True, MUTED), (left, top + 38 * scale))
-    for index, count in enumerate(app.count_buttons):
-        button = app.count_buttons[count]
+    for index, (count, button) in enumerate(app.count_buttons.items()):
         button.accent = count == app.server_count
         button.draw(app.screen, app.font, (left + index * 64 * scale, top + 64 * scale, 52 * scale, 36 * scale))
     for index in range(app.server_count):
@@ -171,7 +169,7 @@ def draw_menu(app):
 def draw_groups(app):
     scale = app.scale
     left, right = app.content.left, app.content.right
-    height = app.window_size[1]
+    height = app.screen.get_height()
     column = (app.content.width - 32 * scale) // 2
     second = left + column + 32 * scale
     app.screen.blit(app.heading_font.render("Participantes e grupos", True, TEXT), (left, 112 * scale))
@@ -259,7 +257,7 @@ def draw_leaderboard(app, state, rect):
 
 def draw_viewer(app):
     scale = app.scale
-    width, height = app.window_size
+    width, height = app.screen.get_size()
     columns = 1
     rows = 1
     if app.server_count > 1:
@@ -275,7 +273,7 @@ def draw_viewer(app):
         app.screen.blit(app.heading_font.render(title, True, TEXT), (x, y))
         detail = f"{state['ip']} · {state['track_id'] or 'à espera da corrida'}"
         if state["error"]:
-            detail = f"{state['ip']} · erro no pedido UDP"
+            detail = f"{state['ip']} · {state['error']}"
         detail = fit_text(app.small_font, detail, cell_width)
         app.screen.blit(app.small_font.render(detail, True, MUTED), (x, y + 28 * scale))
         board_width = min(240 * scale, cell_width * 2 // 5)

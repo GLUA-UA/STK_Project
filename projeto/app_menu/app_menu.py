@@ -32,8 +32,8 @@ class MenuApp:
         for index in range(4):
             self.ip_boxes.append(ui.TextBox("127.0.0.1"))
             self.server_names.append(ui.TextBox(f"Server {index + 1}"))
-        self.status = "Escolhe os servidores e indica os IPs."
-        self.status_color = ui.MUTED
+        print("[MENU] Iniciar menu STK.")
+        self.set_status("Escolhe os servidores e indica os IPs.")
 
         self.start_button = ui.Button("Iniciar mapa", True)
         self.group_button = ui.Button("Configurar grupos")
@@ -65,7 +65,6 @@ class MenuApp:
     def resize(self):
         # SDL distingue o tamanho da janela dos píxeis físicos (2x em Retina).
         self.screen = self.window.get_surface()
-        self.window_size = self.screen.get_size()
         scale = self.screen.get_width() / self.window.size[0]
         if scale != self.scale:
             self.scale = scale
@@ -73,14 +72,21 @@ class MenuApp:
             self.font = pygame.font.SysFont("Arial", round(16 * scale))
             self.small_font = pygame.font.SysFont("Arial", round(14 * scale))
             self.logo = ui.load_image("Logo_White.svg", 144 * scale, 60 * scale)
-        width, height = self.window_size
+        width, height = self.screen.get_size()
         content_width = min(760 * scale, width - 64 * scale)
         self.content = pygame.Rect((width - content_width) // 2, 0, content_width, height)
+
+    def set_status(self, message, color=ui.MUTED):
+        self.status = message
+        self.status_color = color
+        if message:
+            print("[MENU]", message)
 
     def change_mode(self, mode):
         if self.mode == "viewer" and mode != "viewer":
             self.close_viewer()
         self.mode = mode
+        print("[ECRÃ]", mode)
         for box in self.ip_boxes + self.server_names + self.name_boxes + [self.total_box, self.group_total_box]:
             box.active = False
 
@@ -89,12 +95,9 @@ class MenuApp:
             return
         try:
             self.viewer.close()
-            self.status = "Pontuações guardadas em projeto/pontuacoes/."
-            self.status_color = ui.ORANGE
+            self.set_status("Pontuações guardadas em projeto/pontuacoes/.", ui.ORANGE)
         except OSError as error:
-            self.status = f"Erro ao guardar pontuações: {error}"
-            self.status_color = ui.ERROR
-            print(f"[ERRO] {self.status}")
+            self.set_status(f"Erro ao guardar pontuações: {error}", ui.ERROR)
 
     def open_viewer(self):
         self.close_viewer()
@@ -109,19 +112,16 @@ class MenuApp:
             servers.append({"label": name, "ip": address})
         try:
             self.viewer.open(servers)
-            self.status = "Voltar guarda as pontuações. O STK deve estar a correr no servidor."
-            self.status_color = ui.ORANGE
+            self.set_status("Voltar guarda as pontuações. O STK deve estar a correr no servidor.", ui.ORANGE)
         except OSError as error:
-            self.status = f"Viewer aberto sem UDP: {error}"
-            self.status_color = ui.ERROR
-            print(f"[WARN] {self.status}")
+            self.set_status(f"Erro ao abrir UDP: {error}", ui.ERROR)
+            return
         self.change_mode("viewer")
 
     def update_participant_count(self):
         value = self.total_box.text.strip()
         if not value.isdigit():
-            self.status = "Numero de participantes invalido."
-            self.status_color = ui.ERROR
+            self.set_status("Numero de participantes invalido.", ui.ERROR)
             return False
 
         total = max(2, min(MAX_PARTICIPANTS, int(value)))
@@ -133,8 +133,7 @@ class MenuApp:
 
         self.total_box.text = str(total)
         self.group_scroll = min(self.group_scroll, self.max_group_scroll())
-        self.status = f"{total} participantes preparados."
-        self.status_color = ui.ORANGE
+        self.set_status(f"{total} participantes preparados.", ui.ORANGE)
         return True
 
     def randomize_groups(self):
@@ -144,8 +143,7 @@ class MenuApp:
             if name:
                 names.append(name)
         if len(names) < 2:
-            self.status = "Escreve pelo menos dois nomes."
-            self.status_color = ui.ERROR
+            self.set_status("Escreve pelo menos dois nomes.", ui.ERROR)
             return
 
         random.shuffle(names)
@@ -163,43 +161,40 @@ class MenuApp:
             self.groups[index % group_count].append(name)
 
         self.group_result_scroll = 0
-        self.status = "Grupos criados."
-        self.status_color = ui.ORANGE
+        self.set_status("Grupos criados.", ui.ORANGE)
+        for index, group in enumerate(self.groups, start=1):
+            print(f"[GRUPO {index}] {', '.join(group)}")
 
     def handle_menu_event(self, event):
         for count, button in self.count_buttons.items():
             if button.clicked(event):
                 self.server_count = count
+                self.set_status(f"{count} servidor(es) selecionado(s).")
 
-        for box in self.ip_boxes[:self.server_count] + self.server_names[:self.server_count]:
-            box.handle_event(event)
+        for index in range(self.server_count):
+            self.ip_boxes[index].handle_event(event)
+            self.server_names[index].handle_event(event)
 
         if self.start_button.clicked(event):
             self.open_viewer()
 
         if self.group_button.clicked(event):
             self.change_mode("groups")
-            self.status = ""
-            self.status_color = ui.MUTED
+            self.set_status("")
 
     def handle_group_event(self, event):
         total_was_active = self.total_box.active
         self.total_box.handle_event(event)
         self.group_total_box.handle_event(event)
 
-        if total_was_active:
-            if event.type == pygame.MOUSEBUTTONDOWN and not self.total_box.active:
-                self.update_participant_count()
-            elif event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
-                self.update_participant_count()
+        if total_was_active and not self.total_box.active:
+            self.update_participant_count()
 
         if event.type == pygame.MOUSEWHEEL:
-            x, y = pygame.mouse.get_pos()
-            mouse_pos = (round(x * self.scale), round(y * self.scale))
-            if self.group_name_area.collidepoint(mouse_pos):
+            if self.group_name_area.collidepoint(event.pos):
                 self.group_scroll -= event.y * 36 * self.scale
                 self.group_scroll = max(0, min(self.group_scroll, self.max_group_scroll()))
-            if self.group_result_area.collidepoint(mouse_pos):
+            if self.group_result_area.collidepoint(event.pos):
                 self.group_result_scroll -= event.y * 36 * self.scale
                 self.group_result_scroll = max(0, min(self.group_result_scroll, self.max_group_result_scroll()))
 
@@ -216,12 +211,11 @@ class MenuApp:
             self.groups = []
             self.group_scroll = 0
             self.group_result_scroll = 0
-            self.status = ""
-            self.status_color = ui.MUTED
+            self.set_status("")
+            print("[GRUPOS] Campos e grupos limpos.")
 
-        if self.random_button.clicked(event):
-            if self.update_participant_count():
-                self.randomize_groups()
+        if self.random_button.clicked(event) and self.update_participant_count():
+            self.randomize_groups()
 
     def max_group_scroll(self):
         rows = (len(self.name_boxes) + 1) // 2
@@ -242,7 +236,9 @@ class MenuApp:
             return True
 
         # SDL envia cliques em coordenadas da janela; o desenho usa píxeis Retina.
-        if event.type in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP, pygame.MOUSEMOTION):
+        if event.type == pygame.MOUSEWHEEL:
+            event.pos = pygame.mouse.get_pos()
+        if event.type in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP, pygame.MOUSEMOTION, pygame.MOUSEWHEEL):
             x, y = event.pos
             event.pos = (round(x * self.scale), round(y * self.scale))
 
@@ -260,10 +256,8 @@ class MenuApp:
         elif self.mode == "groups":
             self.handle_group_event(event)
         elif self.mode == "viewer" and event.type == pygame.MOUSEWHEEL:
-            x, y = pygame.mouse.get_pos()
-            mouse_pos = (round(x * self.scale), round(y * self.scale))
             for state in self.viewer.states:
-                if state["board_rect"] and state["board_rect"].collidepoint(mouse_pos):
+                if state["board_rect"] and state["board_rect"].collidepoint(event.pos):
                     state["scroll"] = max(0, state["scroll"] - event.y)
 
         if event.type == pygame.MOUSEBUTTONDOWN:
@@ -286,6 +280,7 @@ class MenuApp:
         finally:
             self.close_viewer()
             pygame.quit()
+            print("[MENU] Menu STK terminado.")
 
 
 if __name__ == "__main__":
