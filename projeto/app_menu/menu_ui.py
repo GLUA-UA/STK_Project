@@ -180,7 +180,19 @@ def draw_header(app):
     if partner:
         app.screen.blit(partner, (right - partner.get_width(), 22 * scale))
     pygame.draw.line(app.screen, BORDER, (left, height - 42 * scale), (right, height - 42 * scale))
-    status = fit_text(app.small_font, app.status, right - left)
+    status_width = right - left
+    app.designer_link_rect = None
+    if app.mode == "home":
+        prefix = app.small_font.render("UI Design: ", True, MUTED)
+        name = app.small_font.render("DuoSky", True, MUTED)
+        app.designer_link_rect = name.get_rect(topright=(right, height - 30 * scale))
+        mouse_x, mouse_y = pygame.mouse.get_pos()
+        if app.designer_link_rect.collidepoint(mouse_x * scale, mouse_y * scale):
+            name = app.small_font.render("DuoSky", True, ORANGE)
+        app.screen.blit(prefix, (app.designer_link_rect.left - prefix.get_width(), height - 30 * scale))
+        app.screen.blit(name, app.designer_link_rect)
+        status_width -= prefix.get_width() + name.get_width() + 24 * scale
+    status = fit_text(app.small_font, app.status, status_width)
     app.screen.blit(app.small_font.render(status, True, app.status_color), (left, height - 30 * scale))
 
 
@@ -228,8 +240,6 @@ def draw_home(app):
     left, right = app.content.left, app.content.right
     if app.hero:
         app.screen.blit(app.hero, app.hero.get_rect(center=app.hero_rect.center))
-    credit = app.small_font.render("Obrigado à DuoSky pelo design da interface · https://duosky.pt/", True, MUTED)
-    app.screen.blit(credit, credit.get_rect(midtop=(app.content.centerx, app.hero_rect.bottom + 12 * scale)))
     # O Figma deixa 100 px entre hero e secção; aqui o hero usa metade da altura.
     top = app.hero_rect.bottom + 50 * scale
     app.screen.blit(app.heading_font.render("Configurar servidores", True, TEXT), (left, top))

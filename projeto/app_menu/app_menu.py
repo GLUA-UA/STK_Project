@@ -4,6 +4,7 @@ Na raiz do repositório: .venv/bin/python projeto/app_menu/app_menu.py
 """
 
 import random
+import webbrowser
 import pygame
 import menu_ui as ui
 from stk_viewer import Viewer
@@ -26,6 +27,7 @@ class MenuApp:
         self.clock = pygame.time.Clock()
 
         self.mode = "home"
+        self.designer_link_rect = None
         self.server_count = 1
         self.ip_boxes = []
         self.server_names = []
@@ -176,6 +178,11 @@ class MenuApp:
             print(f"[GRUPO {index}] {', '.join(group)}")
 
     def handle_home_event(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            if self.designer_link_rect and self.designer_link_rect.collidepoint(event.pos):
+                webbrowser.open("https://duosky.pt/")
+                return
+
         for count, button in self.count_buttons.items():
             if button.clicked(event):
                 self.server_count = count
