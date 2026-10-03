@@ -71,7 +71,9 @@ Para abrir o menu, na raiz do repositório:
 1. Escolhe 1, 2 ou 4 servidores e indica os nomes e IPs ou endereços.
 2. Em **Configurar grupos**, indica os participantes, os nomes e o número de
    grupos. Usa **Randomizar** para distribuir os nomes preenchidos.
-3. Volta ao menu e usa **Iniciar mapa** com o servidor STK já a correr.
+3. Volta ao menu e usa **Assistir** com o servidor STK já a correr.
+   **Assistir** mostra todos os servidores ao mesmo tempo: um mapa grande,
+   dois lado a lado ou quatro numa grelha 2×2, cada um com a sua classificação.
 4. **Voltar**, Escape ou fechar a janela guarda a classificação atual em
    `projeto/pontuacoes/`. Escape no menu fecha a aplicação.
 
@@ -96,7 +98,7 @@ O código do menu está dividido em três ficheiros:
 - `stk_viewer.py`: UDP, leitura de pistas e gravação de pontuações.
 
 Para mudar os nomes dos botões, começa em `MenuApp.__init__` no `app_menu.py`.
-Os ecrãs estão nas funções `draw_menu`, `draw_groups` e `draw_viewer` do
+Os ecrãs estão nas funções `draw_home`, `draw_groups` e `draw_viewer` do
 `menu_ui.py`. O formato dos pacotes está em `parse_packet` no `stk_viewer.py`.
 
 ## Compilar o STK Modificado

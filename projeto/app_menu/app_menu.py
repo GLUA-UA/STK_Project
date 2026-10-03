@@ -25,7 +25,7 @@ class MenuApp:
         self.resize()
         self.clock = pygame.time.Clock()
 
-        self.mode = "menu"
+        self.mode = "home"
         self.server_count = 1
         self.ip_boxes = []
         self.server_names = []
@@ -35,8 +35,8 @@ class MenuApp:
         print("[MENU] Iniciar menu STK.")
         self.set_status("Escolhe os servidores e indica os IPs.")
 
-        self.start_button = ui.Button("Iniciar mapa", True)
-        self.group_button = ui.Button("Configurar grupos")
+        self.start_button = ui.Button("Assistir", True)
+        self.group_button = ui.Button("Configurar grupos", True)
         self.back_button = ui.Button("Voltar")
         self.clear_button = ui.Button("Limpar")
         self.random_button = ui.Button("Randomizar", True)
@@ -58,7 +58,7 @@ class MenuApp:
         self.group_result_scroll = 0
         self.group_result_area = pygame.Rect(0, 0, 1, 1)
         self.groups = []
-        icon = ui.load_image("Logo_Penguin_Orange.svg", 64, 64)
+        icon = self.images["penguin"]
         if icon:
             self.window.set_icon(icon)
 
@@ -68,13 +68,23 @@ class MenuApp:
         scale = self.screen.get_width() / self.window.size[0]
         if scale != self.scale:
             self.scale = scale
-            self.heading_font = pygame.font.SysFont("Arial", round(20 * scale), bold=True)
+            self.heading_font = pygame.font.SysFont("Arial", round(28 * scale), bold=True)
             self.font = pygame.font.SysFont("Arial", round(16 * scale))
             self.small_font = pygame.font.SysFont("Arial", round(14 * scale))
-            self.logo = ui.load_image("Logo_White.svg", 144 * scale, 60 * scale)
+            self.images = ui.load_design_images(scale)
         width, height = self.screen.get_size()
-        content_width = min(760 * scale, width - 64 * scale)
+        content_width = min(960 * scale, width - 96 * scale)
         self.content = pygame.Rect((width - content_width) // 2, 0, content_width, height)
+        # O hero do Figma tem 999 x 600; o espaço fica igual para 1, 2 e 4 servidores.
+        hero_height = min(300 * scale, height - 498 * scale)
+        self.hero_rect = pygame.Rect(0, 80 * scale, hero_height * 999 / 600, hero_height)
+        self.hero_rect.centerx = self.content.centerx
+        self.hero = None
+        image = self.images["hero"]
+        if image:
+            factor = min(self.hero_rect.width / image.get_width(), self.hero_rect.height / image.get_height())
+            size = (round(image.get_width() * factor), round(image.get_height() * factor))
+            self.hero = pygame.transform.smoothscale(image, size)
 
     def set_status(self, message, color=ui.MUTED):
         self.status = message
@@ -165,7 +175,7 @@ class MenuApp:
         for index, group in enumerate(self.groups, start=1):
             print(f"[GRUPO {index}] {', '.join(group)}")
 
-    def handle_menu_event(self, event):
+    def handle_home_event(self, event):
         for count, button in self.count_buttons.items():
             if button.clicked(event):
                 self.server_count = count
@@ -243,16 +253,16 @@ class MenuApp:
             event.pos = (round(x * self.scale), round(y * self.scale))
 
         escape = event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE
-        back = self.mode != "menu" and self.back_button.clicked(event)
+        back = self.mode != "home" and self.back_button.clicked(event)
         if escape or back:
-            if self.mode == "menu":
+            if self.mode == "home":
                 return False
-            self.change_mode("menu")
+            self.change_mode("home")
             ui.draw(self)
             return True
 
-        if self.mode == "menu":
-            self.handle_menu_event(event)
+        if self.mode == "home":
+            self.handle_home_event(event)
         elif self.mode == "groups":
             self.handle_group_event(event)
         elif self.mode == "viewer" and event.type == pygame.MOUSEWHEEL:
