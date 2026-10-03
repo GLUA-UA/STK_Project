@@ -228,6 +228,8 @@ def draw_home(app):
     left, right = app.content.left, app.content.right
     if app.hero:
         app.screen.blit(app.hero, app.hero.get_rect(center=app.hero_rect.center))
+    credit = app.small_font.render("Obrigado à DuoSky pelo design da interface · https://duosky.pt/", True, MUTED)
+    app.screen.blit(credit, credit.get_rect(midtop=(app.content.centerx, app.hero_rect.bottom + 12 * scale)))
     # O Figma deixa 100 px entre hero e secção; aqui o hero usa metade da altura.
     top = app.hero_rect.bottom + 50 * scale
     app.screen.blit(app.heading_font.render("Configurar servidores", True, TEXT), (left, top))
