@@ -8,6 +8,7 @@ import webbrowser
 import pygame
 import menu_ui as ui
 from stk_viewer import Viewer
+from server_process import Servers
 
 WINDOW_SIZE = (1280, 820)
 MIN_SIZE = (980, 640)
@@ -19,7 +20,7 @@ MAX_GROUPS = 16
 class MenuApp:
     def __init__(self):
         pygame.init()
-        self.window = pygame.Window("GLUA — STK", size=WINDOW_SIZE,
+        self.window = pygame.Window("GLUA - STK", size=WINDOW_SIZE,
                                     resizable=True, allow_high_dpi=True)
         self.window.minimum_size = MIN_SIZE
         self.scale = 0
@@ -49,6 +50,7 @@ class MenuApp:
         }
 
         self.viewer = Viewer()
+        self.servers = Servers()
 
         self.total_box = ui.TextBox("8")
         self.group_total_box = ui.TextBox(str(DEFAULT_GROUP_COUNT))
@@ -103,6 +105,7 @@ class MenuApp:
             box.active = False
 
     def close_viewer(self):
+        self.servers.stop()
         if not self.viewer.states:
             return
         try:
@@ -123,10 +126,12 @@ class MenuApp:
                 address = "127.0.0.1"
             servers.append({"label": name, "ip": address})
         try:
+            self.servers.start(servers)
             self.viewer.open(servers)
-            self.set_status("Voltar guarda as pontuações. O STK deve estar a correr no servidor.", ui.ORANGE)
-        except OSError as error:
-            self.set_status(f"Erro ao abrir UDP: {error}", ui.ERROR)
+            self.set_status("A acompanhar servidores. Voltar para guardar e parar o servidor local.", ui.ORANGE)
+        except (OSError, ValueError) as error:
+            self.servers.stop()
+            self.set_status(f"Erro ao abrir sessão: {error}", ui.ERROR)
             return
         self.change_mode("viewer")
 
@@ -291,6 +296,9 @@ class MenuApp:
                         return
                 if self.mode == "viewer":
                     self.viewer.read_packets()
+                    message = self.servers.check(self.viewer.states)
+                    if message:
+                        self.set_status(message, ui.ERROR)
                 ui.draw(self)
                 self.window.flip()
                 self.clock.tick(60)

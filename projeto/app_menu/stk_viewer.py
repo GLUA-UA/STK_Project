@@ -2,6 +2,7 @@
 
 import os
 import socket
+import time
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from math import isfinite
@@ -98,9 +99,11 @@ class Viewer:
     def __init__(self):
         self.sock = None
         self.states = []
+        self.next_request = 0
 
     def open(self, servers):
         self.states = []
+        self.next_request = 0
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         try:
             sock.bind(("0.0.0.0", CLIENT_PORT))
@@ -112,6 +115,8 @@ class Viewer:
         print(f"[UDP] Listener iniciado em 0.0.0.0:{CLIENT_PORT}")
         for server in servers:
             state = {
+                "game_port": server.get("game_port"),
+                "local": server.get("local", False),
                 "label": server["label"],
                 "ip": server["ip"],
                 "address": server["ip"],
@@ -154,6 +159,17 @@ class Viewer:
         if not self.sock:
             return
 
+        # O STK abre a telemetria quando a corrida começa; repete pedidos pendentes.
+        now = time.monotonic()
+        if now >= self.next_request:
+            self.next_request = now + 1
+            for state in self.states:
+                if not state["receiving"] and not state["error"]:
+                    try:
+                        self.sock.sendto(b"MAP_CONNECT", (state["address"], SERVER_PORT))
+                    except OSError as error:
+                        state["error"] = str(error)
+                        print("[ERRO UDP]", error)
         while True:
             try:
                 data, address = self.sock.recvfrom(1024)

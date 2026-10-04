@@ -43,44 +43,102 @@ projeto/stk-assets/tracks/<track_id>/quads.xml
 Depois desenha a pista, coloca os jogadores nas coordenadas `x` e `z`, e ordena
 a leaderboard usando o campo `pos`.
 
+## Dependências
+
+### SuperTuxKart (Ubuntu / Pop!_OS)
+
+Instala estas ferramentas e bibliotecas antes de compilar:
+
+```bash
+sudo apt update
+
+sudo apt install -y \
+    build-essential \
+    cmake \
+    pkg-config \
+    git \
+    libsdl2-dev \
+    libjpeg-dev \
+    libpng-dev \
+    zlib1g-dev \
+    libbluetooth-dev \
+    libopenal-dev \
+    libfreetype6-dev \
+    libvorbis-dev \
+    libogg-dev \
+    libharfbuzz-dev \
+    libcurl4-openssl-dev \
+    libssl-dev \
+    libsqlite3-dev
+```
+
+### Aplicação Python
+
+Instala o Python e o suporte para ambientes virtuais:
+
+```bash
+sudo apt install -y python3 python3-venv python3-pip
+```
+
+Na raiz do repositório, cria a venv do menu e instala os pacotes Python:
+
+```bash
+cd projeto/app_menu
+python3 -m venv .venv
+source .venv/bin/activate
+pip install pygame-ce numpy
+```
+
+Usa `pygame-ce`, não o pacote Ubuntu `python3-pygame`. O menu usa
+`pygame.Window` e precisa do `pygame-ce` 2.5.7 ou superior.
+Não instales `pygame` e `pygame-ce` juntos na mesma venv. Os SVG são carregados
+pelo `pygame-ce`; não é necessário CairoSVG.
+
 ## Preparar e abrir o menu
 
 Requisitos: Python 3, `pygame-ce` 2.5.7 ou superior e as pistas em
 `projeto/stk-assets/tracks/`. Para receber dados, precisas do servidor STK
-modificado descrito abaixo. O menu não inicia o servidor STK.
+modificado descrito abaixo. **Assistir** inicia apenas o servidor configurado como local;
+o menu não compila STK nem inicia a corrida dentro do lobby.
 
-Se já tens uma `.venv` a funcionar, usa-a. Para criar uma pela primeira vez,
-na raiz do repositório:
+Se já tens uma `.venv` a funcionar, podes continuar a usá-la.
+
+Dentro de `projeto/app_menu/`, com a venv ativada:
 
 ```bash
-python3 -m venv .venv
-.venv/bin/python -m pip install "pygame-ce>=2.5.7"
+python app_menu.py
 ```
 
-O `pygame-ce` fornece o módulo `pygame`, incluindo o carregamento de SVG e o
-suporte Retina usado pelo menu. Não instales `pygame` e `pygame-ce` juntos
-na mesma venv. Os SVG originais ficam em `app_menu/images/`; não é necessário
-CairoSVG.
-
-Para abrir o menu, na raiz do repositório:
+Ou, sem ativar a venv:
 
 ```bash
-.venv/bin/python projeto/app_menu/app_menu.py
+.venv/bin/python app_menu.py
 ```
 
 1. Escolhe 1, 2 ou 4 servidores e indica os nomes e IPs ou endereços.
 2. Em **Configurar grupos**, indica os participantes, os nomes e o número de
    grupos. Usa **Randomizar** para distribuir os nomes preenchidos.
-3. Volta ao menu e usa **Assistir** com o servidor STK já a correr.
+3. Volta ao menu e usa **Assistir** para acompanhar os servidores. O servidor local
+   é iniciado pelo menu; os remotos devem estar a correr nos seus computadores.
    **Assistir** mostra todos os servidores ao mesmo tempo: um mapa grande,
    dois lado a lado ou quatro numa grelha 2×2, cada um com a sua classificação.
-4. **Voltar**, Escape ou fechar a janela guarda a classificação atual em
+4. **Voltar**, Escape ou fechar a janela para os processos iniciados pelo menu
+   e guarda a classificação atual em
    `projeto/pontuacoes/`. Escape no menu fecha a aplicação.
 
-Os nomes dos servidores no menu identificam os mapas e os ficheiros de
-pontuações; não alteram o nome configurado no servidor STK. Os grupos ficam
-apenas em memória e não são enviados ao STK. Usa a roda do rato para percorrer
-participantes, grupos ou classificações que não caibam no ecrã.
+Cada IP identifica o computador de um servidor. O menu pode correr noutro
+computador. `localhost`, `127.0.0.1` ou um IP desta máquina identificam um
+servidor local. Só esse servidor é iniciado automaticamente, com o nome indicado.
+Os remotos são iniciados manualmente nos respetivos computadores; os nomes no
+menu identificam os seus mapas e pontuações, sem alterar o nome do STK remoto.
+
+Um torneio de 2 ou 4 servidores não inicia 2 ou 4 processos nesta máquina.
+Usa um computador por servidor, com no máximo um servidor local. Qualquer
+entrada pode ser local, não apenas a primeira. Também podes usar só servidores
+remotos. Usa IPs diferentes para cada servidor.
+
+Os grupos ficam apenas em memória e não são enviados ao STK. Usa a roda do rato
+para percorrer participantes, grupos ou classificações que não caibam no ecrã.
 
 Em **Configurar grupos**, podes preparar entre 2 e 32 campos de participantes
 e escolher entre 1 e 16 grupos. Só os nomes preenchidos entram na distribuição;
@@ -91,11 +149,21 @@ Mantém o terminal aberto para acompanhar os servidores selecionados, os pedidos
 UDP, a primeira receção de dados, as pistas, os novos jogadores e os erros.
 O menu não imprime cada pacote nem inicia corridas: estas são iniciadas no STK.
 
-O código do menu está dividido em três ficheiros:
+Só o servidor local gera uma configuração em
+`projeto/app_menu/runtime/local_server.xml`. Os seus logs e dados ficam nessa
+pasta, ignorada pelo Git. A referência `my.xml` não é alterada.
+O jogo usa a porta 2759 e a descoberta LAN usa 2757. Cada computador STK
+recebe pedidos de telemetria em 9998; o menu recebe as respostas em 9999.
+**Voltar** termina apenas o processo local criado pelo menu, nunca os remotos
+ou outros processos STK já existentes. Sem dados de um remoto, confirma que
+está em corrida, que o IP está correto e que a firewall permite UDP.
+
+O código do menu está dividido em quatro ficheiros:
 
 - `app_menu.py`: eventos, navegação e organização dos participantes.
 - `menu_ui.py`: botões, campos, SVG e desenho dos ecrãs.
 - `stk_viewer.py`: UDP, leitura de pistas e gravação de pontuações.
+- `server_process.py`: configurações, arranque, logs e paragem dos processos STK.
 
 Para mudar os nomes dos botões, começa em `MenuApp.__init__` no `app_menu.py`.
 Os ecrãs estão nas funções `draw_home`, `draw_groups` e `draw_viewer` do
@@ -104,13 +172,20 @@ Os ecrãs estão nas funções `draw_home`, `draw_groups` e `draw_viewer` do
 ## Compilar o STK Modificado
 
 O projecto precisa do SuperTuxKart compilado com a alteracao no `world.cpp`.
-Um fluxo normal e:
+Na raiz do repositório, executa:
 
 ```bash
 cd projeto/stk-code
-cmake -S . -B build-server -DCMAKE_BUILD_TYPE=Debug -DNO_SHADERC=on
+
+cmake -S . -B build-server \
+    -DCMAKE_BUILD_TYPE=Debug \
+    -DNO_SHADERC=on
+
 cmake --build build-server -j"$(nproc)"
 ```
+
+Os avisos sobre `astc-encoder` e `libopenglrecorder` são opcionais e não
+impedem a compilação. A falta de `libopenglrecorder` desativa o gravador do jogo.
 
 Em macOS, troca o ultimo comando por:
 

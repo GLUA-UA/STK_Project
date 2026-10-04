@@ -151,18 +151,20 @@ def fit_text(font, text, width):
     return text + "..."
 
 
-def world_to_screen(track, x, z, rect, padding):
-    track_width = track["width"] or 1
-    track_height = track["height"] or 1
-    scale = min(
-        (rect.width - padding * 2) / track_width,
-        (rect.height - padding * 2) / track_height,
-    )
-    left = rect.centerx - track_width * scale / 2
-    bottom = rect.centery + track_height * scale / 2
-    screen_x = left + (x - track["min_x"]) * scale
-    screen_y = bottom - (z - track["min_z"]) * scale
-    return int(screen_x), int(screen_y)
+def map_transform(track, rect):
+    # A caixa vem dos vértices reais de quads.xml. Margens de 6% em cada eixo.
+    width = track["width"] or 1
+    height = track["height"] or 1
+    factor = min(rect.width * 0.88 / width, rect.height * 0.88 / height)
+    left = rect.centerx - width * factor / 2
+    bottom = rect.centery + height * factor / 2
+    return factor, left, bottom
+
+
+def world_to_screen(track, x, z, transform):
+    factor, left, bottom = transform
+    return (round(left + (x - track["min_x"]) * factor),
+            round(bottom - (z - track["min_z"]) * factor))
 
 
 def draw_header(app):
@@ -329,14 +331,15 @@ def draw_map(app, track, players, rect, title):
         return
 
     content = pygame.Rect(rect.x, rect.y + 32 * app.scale, rect.width, rect.height - 32 * app.scale)
+    transform = map_transform(track, content)
     for quad in track["quads"]:
         points = []
         for x, z in quad:
-            points.append(world_to_screen(track, x, z, content, 12 * app.scale))
+            points.append(world_to_screen(track, x, z, transform))
         pygame.draw.polygon(app.screen, MUTED, points, 1)
 
     for name, data in players.items():
-        x, y = world_to_screen(track, data["x"], data["z"], content, 12 * app.scale)
+        x, y = world_to_screen(track, data["x"], data["z"], transform)
         pygame.draw.circle(app.screen, ORANGE, (x, y), round(5 * app.scale))
         label = app.small_font.render(fit_text(app.small_font, name, 90 * app.scale), True, TEXT)
         label_rect = label.get_rect(topleft=(x + 8 * app.scale, y - 8 * app.scale))
@@ -366,7 +369,7 @@ def draw_leaderboard(app, state, rect):
         app.screen.blit(app.small_font.render(kart, True, MUTED), (rect.x + rect.width * 2 // 3, y + 2 * scale))
         y += 24 * scale
     if len(players) > rows:
-        label = f"{start + 1}–{min(start + rows, len(players))} / {len(players)} · scroll"
+        label = f"{start + 1}-{min(start + rows, len(players))} / {len(players)} · scroll"
         app.screen.blit(app.small_font.render(label, True, MUTED), (rect.x, rect.bottom - 18 * scale))
 
 
@@ -374,22 +377,25 @@ def draw_server_view(app, state, area, compact):
     scale = app.scale
     name = fit_text(app.font, state["label"], area.width)
     app.screen.blit(app.font.render(name, True, TEXT), area.topleft)
-    status = "À espera de dados do STK"
+    status = "Local: à espera de dados do STK" if state.get("local") else "Remoto: à espera de dados do STK"
     color = ORANGE
     if state["error"]:
         status = "Erro: " + state["error"]
         color = ERROR
     elif state["receiving"]:
         status = "Dados recebidos"
-    detail = fit_text(app.small_font, f"{state['ip']} | {status}", area.width - 20 * scale)
+    address = state["ip"]
+    if state.get("game_port"):
+        address += f":{state['game_port']}"
+    detail = fit_text(app.small_font, f"{address} | {status}", area.width - 20 * scale)
     app.screen.blit(app.small_font.render(detail, True, MUTED), (area.x, area.y + 24 * scale))
     dot_x = area.x + app.small_font.size(detail)[0] + 10 * scale
     pygame.draw.circle(app.screen, color, (round(dot_x), round(area.y + 32 * scale)), round(3 * scale))
 
     map_top = area.y + 48 * scale
     if compact:
-        # Na grelha 2x2, a classificação ao lado deixa a pista maior e legível.
-        board_width = area.width * 2 // 5
+        # A classificação lateral dá mais altura à pista.
+        board_width = min(240 * scale, area.width * 2 // 5)
         map_rect = pygame.Rect(area.x, map_top, area.width - board_width - 16 * scale, area.bottom - map_top)
         board_rect = pygame.Rect(map_rect.right + 16 * scale, map_top, board_width, map_rect.height)
     else:
@@ -435,7 +441,7 @@ def draw_viewer(app):
         x = left + (index % columns) * (cell_width + gap)
         y = 128 * scale + (index // columns) * (cell_height + gap)
         area = pygame.Rect(x, y, cell_width, cell_height)
-        draw_server_view(app, state, area, count == 4)
+        draw_server_view(app, state, area, count != 2)
     app.back_button.draw(app.screen, app.font, (right - 144 * scale, height - 78 * scale, 144 * scale, 32 * scale))
 
 
