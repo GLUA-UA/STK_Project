@@ -54,11 +54,9 @@ def load_track(track_id):
 
 
 def player_order(item):
-    # Ordena primeiro pela posição; jogadores sem posição ficam no fim.
-    name, player = item
-    if player["pos"] is None:
-        return (True, 0, name.lower())
-    return (False, player["pos"], name.lower())
+    name = item[0]
+    player = item[1]
+    return player["pos"], name.lower()
 
 
 def sorted_players(players):
@@ -66,33 +64,25 @@ def sorted_players(players):
 
 
 def parse_packet(data):
-    # track|nome|kart|x|z|posição (a posição pode não vir no pacote).
+    # track|nome|kart|x|z|posição, enviado por world.cpp.
     parts = data.decode(errors="ignore").strip().split("|")
-    if len(parts) < 5:
+    if len(parts) != 6:
         return None
 
-    track_id, name, kart, x, z = parts[:5]
-    pos = None
-
-    if len(parts) >= 6:
-        try:
-            pos = int(parts[5])
-        except ValueError:
-            pass
-
+    track_id = parts[0]
+    name = parts[1]
+    kart = parts[2]
     try:
-        x, z = float(x), float(z)
+        x = float(parts[3])
+        z = float(parts[4])
+        position = int(parts[5])
     except ValueError:
         return None
     if not isfinite(x) or not isfinite(z):
         return None
 
-    return track_id, name, {
-        "kart": kart,
-        "x": x,
-        "z": z,
-        "pos": pos,
-    }
+    player = {"kart": kart, "x": x, "z": z, "pos": position}
+    return track_id, name, player
 
 
 class Viewer:
@@ -127,11 +117,12 @@ class Viewer:
                 "scroll": 0,
                 "board_rect": None,
                 "receiving": False,
-                "packet_warning": False,
             }
             self.states.append(state)
             try:
-                state["address"] = socket.gethostbyname(state["ip"])
+                if state["ip"] == "localhost":
+                    state["address"] = "127.0.0.1"
+                socket.inet_aton(state["address"])
                 sock.sendto(b"MAP_CONNECT", (state["address"], SERVER_PORT))
                 print(f"[PEDIDO] {state['label']} · {state['ip']}:{SERVER_PORT} (à espera de dados)")
             except OSError as error:
@@ -148,12 +139,6 @@ class Viewer:
                 print("[UDP] Listener fechado.")
             self.sock = None
             self.states = []
-
-    def find_state(self, ip):
-        for state in self.states:
-            if state["address"] == ip:
-                return state
-        return None
 
     def read_packets(self):
         if not self.sock:
@@ -182,14 +167,16 @@ class Viewer:
                 for state in self.states:
                     state["error"] = f"UDP interrompido: {error}"
                 return
-            state = self.find_state(address[0])
+            state = None
+            for server in self.states:
+                if server["address"] == address[0]:
+                    state = server
+                    break
             if not state:
                 continue
             packet = parse_packet(data)
             if not packet:
-                if not state["packet_warning"]:
-                    print(f"[AVISO] {state['label']}: pacote inválido ignorado: {data!r}")
-                    state["packet_warning"] = True
+                print(f"[AVISO] {state['label']}: pacote inválido ignorado: {data!r}")
                 continue
             if not state["receiving"]:
                 print(f"[DADOS] Primeira atualização de {state['label']} · {address[0]}")
@@ -229,14 +216,18 @@ class Viewer:
             suffix += 1
         with open(path, "w", encoding="utf-8") as file:
             for state in self.states:
-                header = f"[{state['label']}] ip={state['ip']} track={state['track_id'] or 'unknown'}"
+                track_id = state["track_id"]
+                if not track_id:
+                    track_id = "unknown"
+                header = f"[{state['label']}] ip={state['ip']} track={track_id}"
                 print(header)
                 file.write(header + "\n")
-                for index, (name, data) in enumerate(sorted_players(state["players"]), start=1):
-                    pos = data["pos"]
-                    if pos is None:
-                        pos = "?"
-                    line = f"{index}. nome={name} kart={data['kart']} pos={pos}"
+                players = sorted_players(state["players"])
+                for index in range(len(players)):
+                    name = players[index][0]
+                    data = players[index][1]
+                    position = data["pos"]
+                    line = f"{index + 1}. nome={name} kart={data['kart']} pos={position}"
                     print(line)
                     file.write(line + "\n")
                 file.write("\n")

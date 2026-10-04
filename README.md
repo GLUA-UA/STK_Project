@@ -28,7 +28,7 @@ E nele que o STK foi alterado para enviar os dados dos jogadores.
 
 ## Como Isto Funciona
 
-Durante a corrida, o STK envia mensagens neste formato:
+Durante a corrida, o STK envia mensagens com estes seis campos:
 
 ```text
 track|nome|kart|x|z|pos
@@ -45,7 +45,7 @@ a leaderboard usando o campo `pos`.
 
 ## Alteração ao SuperTuxKart
 
-Este projeto usa uma pequena alteração ao código do SuperTuxKart em
+A única alteração intencional ao código do SuperTuxKart está em
 `projeto/stk-code/src/modes/world.cpp`. Esta alteração envia por UDP os dados
 necessários para o viewer da aplicação:
 
@@ -120,8 +120,12 @@ pelo `pygame-ce`; não é necessário CairoSVG.
 
 Requisitos: Python 3, `pygame-ce` 2.5.7 ou superior e as pistas em
 `projeto/stk-assets/tracks/`. Para receber dados, precisas do servidor STK
-modificado descrito abaixo. **Assistir** inicia apenas o servidor configurado como local;
-o menu não compila STK nem inicia a corrida dentro do lobby.
+modificado descrito abaixo. **Assistir** inicia apenas o servidor configurado
+como local. O menu não compila STK nem inicia a corrida dentro do lobby.
+
+Se todos os servidores forem remotos, não precisas de compilar ou instalar STK
+na máquina do menu. Podes usar o menu no Mac e o servidor no Pop!_OS.
+Mantém as pistas em `projeto/stk-assets/tracks/` na máquina do menu.
 
 Se já tens uma `.venv` a funcionar, podes continuar a usá-la.
 
@@ -137,20 +141,23 @@ Ou, sem ativar a venv:
 .venv/bin/python app_menu.py
 ```
 
-1. Escolhe 1, 2 ou 4 servidores e indica os nomes e IPs ou endereços.
+1. Escolhe 1, 2 ou 4 servidores e indica os nomes e IPs.
 2. Em **Configurar grupos**, indica os participantes, os nomes e o número de
    grupos. Usa **Randomizar** para distribuir os nomes preenchidos.
 3. Volta ao menu e usa **Assistir** para acompanhar os servidores. O servidor local
    é iniciado pelo menu; os remotos devem estar a correr nos seus computadores.
    **Assistir** mostra todos os servidores ao mesmo tempo: um mapa grande,
    dois lado a lado ou quatro numa grelha 2×2, cada um com a sua classificação.
-4. **Voltar**, Escape ou fechar a janela para os processos iniciados pelo menu
-   e guarda a classificação atual em
+4. **Voltar**, Escape ou fechar a janela usa `pkill supertuxkart` se o menu
+   iniciou um servidor local e guarda a classificação atual em
    `projeto/pontuacoes/`. Escape no menu fecha a aplicação.
 
 Cada IP identifica o computador de um servidor. O menu pode correr noutro
-computador. `localhost`, `127.0.0.1` ou um IP desta máquina identificam um
-servidor local. Só esse servidor é iniciado automaticamente, com o nome indicado.
+computador. Para um servidor local, escreve `127.0.0.1` ou `localhost`.
+Para um servidor remoto, escreve o IP real do outro computador. O menu não
+procura os IPs de rede desta máquina: qualquer outro endereço é tratado como
+remoto. Só o servidor local é iniciado automaticamente, com o nome indicado.
+Nos remotos, usa um IP numérico IPv4, não um nome de máquina.
 Os remotos são iniciados manualmente nos respetivos computadores; os nomes no
 menu identificam os seus mapas e pontuações, sem alterar o nome do STK remoto.
 
@@ -172,20 +179,38 @@ UDP, a primeira receção de dados, as pistas, os novos jogadores e os erros.
 O menu não imprime cada pacote nem inicia corridas: estas são iniciadas no STK.
 
 Só o servidor local gera uma configuração em
-`projeto/app_menu/runtime/local_server.xml`. Os seus logs e dados ficam nessa
-pasta, ignorada pelo Git. A referência `my.xml` não é alterada.
+`projeto/app_menu/runtime/local_server.xml`, numa pasta ignorada pelo Git.
+O XML é recriado ao iniciar o servidor local, com o nome e dificuldade atuais.
+Não é lido para recuperar escolhas anteriores: as opções do menu ficam apenas
+em memória. A referência `my.xml` não é alterada.
+
+O menu procura o executável compilado em `projeto/stk-code/build-server/` e
+inicia-o em segundo plano com `os.system`. Usa `--server-config` com o XML
+gerado, `--lan-server` com o nome escolhido, `--port=2759` e `--network-console`.
+Os caminhos e nomes são protegidos com `shlex.quote` para aceitar espaços.
+As variáveis nativas `SUPERTUXKART_DATADIR` e `SUPERTUXKART_ASSETS_DIR` indicam
+os dados e assets deste repositório. O STK usa a sua pasta de utilizador normal.
+O menu não cria logs do servidor nem redireciona stdout/stderr: a saída aparece
+no terminal. O STK pode criar os seus próprios logs na pasta de utilizador.
 O jogo usa a porta 2759 e a descoberta LAN usa 2757. Cada computador STK
 recebe pedidos de telemetria em 9998; o menu recebe as respostas em 9999.
-**Voltar** termina apenas o processo local criado pelo menu, nunca os remotos
-ou outros processos STK já existentes. Sem dados de um remoto, confirma que
-está em corrida, que o IP está correto e que a firewall permite UDP.
+Ao sair de uma sessão com servidor local, o menu executa `pkill supertuxkart`.
+Este comando pode parar todos os processos SuperTuxKart que o utilizador tem
+permissão para terminar nesta máquina, incluindo os iniciados fora do menu.
+O projeto assume apenas uma instância local do STK. Sessões só com servidores
+remotos não executam `pkill`, e os servidores dos outros computadores não são
+parados. O menu não acompanha o processo nem confirma que ficou pronto.
+Como o comando corre em segundo plano, falhas posteriores aparecem no terminal.
+
+Sem dados de um remoto, confirma que está em corrida, que o IP está correto e
+que a firewall permite UDP.
 
 O código do menu está dividido em quatro ficheiros:
 
 - `app_menu.py`: eventos, navegação e organização dos participantes.
 - `menu_ui.py`: botões, campos, SVG e desenho dos ecrãs.
 - `stk_viewer.py`: UDP, leitura de pistas e gravação de pontuações.
-- `server_process.py`: configurações, arranque, logs e paragem dos processos STK.
+- `server_process.py`: configurações, arranque e paragem dos processos STK.
 
 Para mudar os nomes dos botões, começa em `MenuApp.__init__` no `app_menu.py`.
 Os ecrãs estão nas funções `draw_home`, `draw_groups` e `draw_viewer` do
@@ -281,8 +306,8 @@ O botão do menu não altera servidores remotos. Em cada computador remoto:
 
 ## Rede
 
-No menu, escolhe o número de servidores e escreve os respetivos IPs ou
-endereços. Usa um computador por servidor: a telemetria do STK usa portas
+No menu, escolhe o número de servidores e escreve os respetivos IPs.
+Usa um computador por servidor: a telemetria do STK usa portas
 fixas, pelo que vários servidores na mesma máquina entram em conflito.
 Abre apenas um menu por computador para receber os dados.
 

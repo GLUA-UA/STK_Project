@@ -32,7 +32,6 @@ def load_image(filename, width, height):
 
 
 def load_design_images(scale):
-    # SVGs lidos apenas quando a escala do ecrã muda, nunca a cada frame.
     images = {}
     images["hero"] = None
     try:
@@ -42,10 +41,12 @@ def load_design_images(scale):
     images["penguin"] = load_image("design_vectors/logo_penguin.svg", 32 * scale, 40 * scale)
     images["glua"] = load_image("design_vectors/logo_glua.svg", 62 * scale, 25 * scale)
     images["aetua"] = load_image("design_vectors/logo_aetua.svg", 90 * scale, 36 * scale)
-    for name in ("map", "race", "groups"):
-        images[name] = load_image(f"design_vectors/icon_{name}.svg", 32 * scale, 32 * scale)
-    for name in ("settings", "play", "text"):
-        images[name] = load_image(f"design_vectors/icon_{name}.svg", 18 * scale, 18 * scale)
+    images["map"] = load_image("design_vectors/icon_map.svg", 32 * scale, 32 * scale)
+    images["race"] = load_image("design_vectors/icon_race.svg", 32 * scale, 32 * scale)
+    images["groups"] = load_image("design_vectors/icon_groups.svg", 32 * scale, 32 * scale)
+    images["settings"] = load_image("design_vectors/icon_settings.svg", 18 * scale, 18 * scale)
+    images["play"] = load_image("design_vectors/icon_play.svg", 18 * scale, 18 * scale)
+    images["text"] = load_image("design_vectors/icon_text.svg", 18 * scale, 18 * scale)
     for count, filename in ((1, "icon_person.svg"), (2, "icon_people.svg"), (4, "icon_groups.svg")):
         image = load_image("design_vectors/" + filename, 20 * scale, 20 * scale)
         active_image = None
@@ -96,7 +97,9 @@ class Button:
         screen.blit(label, label.get_rect(midleft=(left, self.rect.centery)))
 
     def clicked(self, event):
-        if event.type != pygame.MOUSEBUTTONDOWN or event.button != 1:
+        if event.type != pygame.MOUSEBUTTONDOWN:
+            return False
+        if event.button != 1:
             return False
         return self.rect.collidepoint(event.pos)
 
@@ -139,8 +142,9 @@ class TextBox:
             elif event.key == pygame.K_RETURN:
                 self.active = False
 
-        elif event.type == pygame.TEXTINPUT and self.active and len(self.text) < 32:
-            self.text += event.text
+        elif event.type == pygame.TEXTINPUT:
+            if self.active and len(self.text) < 32:
+                self.text += event.text
 
 
 def fit_text(font, text, width):
@@ -249,7 +253,6 @@ def draw_home(app):
         app.screen.blit(app.images["map"], (right - 32 * scale, top))
     draw_server_selector(app, top)
 
-    # Quatro servidores usam duas colunas; os restantes mantêm nome e IP lado a lado.
     column_width = app.content.width
     if app.server_count == 4:
         column_width = (app.content.width - 24 * scale) // 2
@@ -362,8 +365,6 @@ def draw_leaderboard(app, state, rect):
     y = rect.y + 28 * scale
     for name, player in players[start:start + rows]:
         pos = player["pos"]
-        if pos is None:
-            pos = "?"
         label = fit_text(app.font, f"{pos}. {name}", rect.width * 2 // 3 - 16 * scale)
         kart = fit_text(app.small_font, player["kart"], rect.width // 3)
         app.screen.blit(app.font.render(label, True, TEXT), (rect.x, y))
@@ -378,7 +379,10 @@ def draw_server_view(app, state, area, compact):
     scale = app.scale
     name = fit_text(app.font, state["label"], area.width)
     app.screen.blit(app.font.render(name, True, TEXT), area.topleft)
-    status = "Local: à espera de dados do STK" if state.get("local") else "Remoto: à espera de dados do STK"
+    if state.get("local"):
+        status = "Local: à espera de dados do STK"
+    else:
+        status = "Remoto: à espera de dados do STK"
     color = ORANGE
     if state["error"]:
         status = "Erro: " + state["error"]
@@ -408,9 +412,15 @@ def draw_server_view(app, state, area, compact):
         map_rect = pygame.Rect(area.x, map_top, area.width, board_rect.top - 20 * scale - map_top)
 
     app.screen.set_clip(map_rect)
-    draw_map(app, state["track"], state["players"], map_rect, state["track_id"] or "Pista")
+    track_title = state["track_id"]
+    if not track_title:
+        track_title = "Pista"
+    draw_map(app, state["track"], state["players"], map_rect, track_title)
     if not state["track"]:
-        message = "Mapa indisponível" if state["track_id"] else "Sem dados"
+        if state["track_id"]:
+            message = "Mapa indisponível"
+        else:
+            message = "Sem dados"
         text = app.small_font.render(message, True, MUTED)
         app.screen.blit(text, text.get_rect(center=map_rect.center))
     app.screen.set_clip(None)

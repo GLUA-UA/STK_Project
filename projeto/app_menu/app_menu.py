@@ -8,7 +8,7 @@ import webbrowser
 import pygame
 import menu_ui as ui
 from stk_viewer import Viewer
-from server_process import Servers
+from server_process import LocalServer
 
 WINDOW_SIZE = (1280, 820)
 MIN_SIZE = (980, 640)
@@ -53,7 +53,7 @@ class MenuApp:
         }
 
         self.viewer = Viewer()
-        self.servers = Servers()
+        self.local_server = LocalServer()
 
         self.total_box = ui.TextBox("8")
         self.group_total_box = ui.TextBox(str(DEFAULT_GROUP_COUNT))
@@ -104,11 +104,17 @@ class MenuApp:
             self.close_viewer()
         self.mode = mode
         print("[ECRÃ]", mode)
-        for box in self.ip_boxes + self.server_names + self.name_boxes + [self.total_box, self.group_total_box]:
+        for box in self.ip_boxes:
             box.active = False
+        for box in self.server_names:
+            box.active = False
+        for box in self.name_boxes:
+            box.active = False
+        self.total_box.active = False
+        self.group_total_box.active = False
 
     def close_viewer(self):
-        self.servers.stop()
+        self.local_server.stop()
         if not self.viewer.states:
             return
         try:
@@ -129,11 +135,11 @@ class MenuApp:
                 address = "127.0.0.1"
             servers.append({"label": name, "ip": address, "difficulty": self.difficulty})
         try:
-            self.servers.start(servers)
+            self.local_server.start(servers)
             self.viewer.open(servers)
             self.set_status("A acompanhar servidores. Voltar para guardar e parar o servidor local.", ui.ORANGE)
         except (OSError, ValueError) as error:
-            self.servers.stop()
+            self.local_server.stop()
             self.set_status(f"Erro ao abrir sessão: {error}", ui.ERROR)
             return
         self.change_mode("viewer")
@@ -144,7 +150,11 @@ class MenuApp:
             self.set_status("Numero de participantes invalido.", ui.ERROR)
             return False
 
-        total = max(2, min(MAX_PARTICIPANTS, int(value)))
+        total = int(value)
+        if total < 2:
+            total = 2
+        elif total > MAX_PARTICIPANTS:
+            total = MAX_PARTICIPANTS
         if total != len(self.name_boxes):
             self.name_boxes = self.name_boxes[:total]
             while len(self.name_boxes) < total:
@@ -171,14 +181,21 @@ class MenuApp:
         value = self.group_total_box.text.strip()
         if value.isdigit():
             group_count = int(value)
-        group_count = max(1, min(MAX_GROUPS, group_count))
+        if group_count < 1:
+            group_count = 1
+        elif group_count > MAX_GROUPS:
+            group_count = MAX_GROUPS
         self.group_total_box.text = str(group_count)
         self.groups = []
         for index in range(group_count):
             self.groups.append([])
 
-        for index, name in enumerate(names):
-            self.groups[index % group_count].append(name)
+        group_index = 0
+        for name in names:
+            self.groups[group_index].append(name)
+            group_index += 1
+            if group_index == group_count:
+                group_index = 0
 
         self.group_result_scroll = 0
         self.set_status("Grupos criados.", ui.ORANGE)
@@ -201,7 +218,9 @@ class MenuApp:
             self.server_names[index].handle_event(event)
 
         if self.difficulty_button.clicked(event):
-            self.difficulty = (self.difficulty + 1) % len(self.difficulty_names)
+            self.difficulty += 1
+            if self.difficulty == len(self.difficulty_names):
+                self.difficulty = 0
             name = self.difficulty_names[self.difficulty]
             self.difficulty_button.text = "Local: " + name
             self.set_status("Dificuldade local: " + name + ". Nos remotos, configura no próprio STK.")
@@ -245,18 +264,26 @@ class MenuApp:
             self.set_status("")
             print("[GRUPOS] Campos e grupos limpos.")
 
-        if self.random_button.clicked(event) and self.update_participant_count():
-            self.randomize_groups()
+        if self.random_button.clicked(event):
+            if self.update_participant_count():
+                self.randomize_groups()
 
     def max_group_scroll(self):
         rows = (len(self.name_boxes) + 1) // 2
-        return max(0, rows * 44 * self.scale - self.group_name_area.height)
+        content_height = rows * 44 * self.scale
+        scroll_limit = content_height - self.group_name_area.height
+        if scroll_limit < 0:
+            scroll_limit = 0
+        return scroll_limit
 
     def max_group_result_scroll(self):
         content_height = 0
         for group in self.groups:
             content_height += (32 + len(group) * 24) * self.scale
-        return max(0, content_height - self.group_result_area.height)
+        scroll_limit = content_height - self.group_result_area.height
+        if scroll_limit < 0:
+            scroll_limit = 0
+        return scroll_limit
 
     def handle_event(self, event):
         if event.type in (pygame.QUIT, pygame.WINDOWCLOSE):
@@ -273,9 +300,13 @@ class MenuApp:
             x, y = event.pos
             event.pos = (round(x * self.scale), round(y * self.scale))
 
-        escape = event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE
-        back = self.mode != "home" and self.back_button.clicked(event)
-        if escape or back:
+        go_back = False
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:
+                go_back = True
+        if self.mode != "home" and self.back_button.clicked(event):
+            go_back = True
+        if go_back:
             if self.mode == "home":
                 return False
             self.change_mode("home")
@@ -305,9 +336,6 @@ class MenuApp:
                         return
                 if self.mode == "viewer":
                     self.viewer.read_packets()
-                    message = self.servers.check(self.viewer.states)
-                    if message:
-                        self.set_status(message, ui.ERROR)
                 ui.draw(self)
                 self.window.flip()
                 self.clock.tick(60)
