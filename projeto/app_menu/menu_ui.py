@@ -273,6 +273,7 @@ def draw_home(app):
     y = top + (132 + rows * 68) * scale
     pygame.draw.line(app.screen, BORDER, (left, y), (right, y))
     app.group_button.draw(app.screen, app.font, (left, y + 16 * scale, 208 * scale, 40 * scale), app.images["settings"])
+    app.difficulty_button.draw(app.screen, app.font, (app.content.centerx - 112 * scale, y + 16 * scale, 224 * scale, 40 * scale))
     app.start_button.draw(app.screen, app.font, (right - 176 * scale, y + 16 * scale, 176 * scale, 40 * scale), app.images["play"])
 
 

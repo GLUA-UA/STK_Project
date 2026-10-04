@@ -1,3 +1,0 @@
-[Server 1] ip=127.0.0.1 track=abyss
-1. nome=victor kart=pidgin pos=1
-

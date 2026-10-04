@@ -43,6 +43,28 @@ projeto/stk-assets/tracks/<track_id>/quads.xml
 Depois desenha a pista, coloca os jogadores nas coordenadas `x` e `z`, e ordena
 a leaderboard usando o campo `pos`.
 
+## Alteração ao SuperTuxKart
+
+Este projeto usa uma pequena alteração ao código do SuperTuxKart em
+`projeto/stk-code/src/modes/world.cpp`. Esta alteração envia por UDP os dados
+necessários para o viewer da aplicação:
+
+- pista atual
+- nome do jogador
+- kart
+- posição X/Z
+- posição na corrida
+
+O viewer envia um pedido ao servidor STK na porta UDP **9998**. Depois de
+receber esse pedido, o STK envia os dados da corrida para a porta UDP **9999**
+da máquina onde está a correr a aplicação Python.
+
+A aplicação usa estes dados para identificar a pista, desenhar o minimapa com
+o `quads.xml` local e mostrar os jogadores e a classificação em tempo real.
+
+Não substituas `world.cpp` pela versão original do SuperTuxKart: isso remove
+a telemetria UDP e o viewer deixa de receber os dados da corrida.
+
 ## Dependências
 
 ### SuperTuxKart (Ubuntu / Pop!_OS)
@@ -216,6 +238,46 @@ projeto/necessary_files/for_server/my.xml
 
 Se `my.xml` nao existir na tua pasta `build-server`, copia esse ficheiro para la
 ou cria uma configuracao equivalente.
+
+## Dificuldade do servidor
+
+Os níveis desta versão do STK são Novice (0), Intermediate (1), Expert (2)
+e SuperTux (3). O campo de configuração é `server-difficulty`.
+
+### Servidor local
+
+No menu, clica no botão **Local: Novice** para percorrer os quatro níveis.
+Escolhe antes de **Assistir**. O menu escreve o nível escolhido em
+`app_menu/runtime/local_server.xml`, apenas para o servidor local.
+O nível inicial é Novice, como na configuração de referência.
+
+### Servidor remoto
+
+O botão do menu não altera servidores remotos. Em cada computador remoto:
+
+1. Instala as dependências e compila STK com os comandos acima.
+2. Na raiz do repositório, copia a configuração:
+
+   ```bash
+   cp projeto/necessary_files/for_server/my.xml projeto/stk-code/build-server/my.xml
+   ```
+
+3. Edita essa cópia e escolhe o nível. Por exemplo, Expert:
+
+   ```xml
+   <server-difficulty value="2" />
+   ```
+
+   Mantém `<server-configurable value="false" />` para que o dono não altere
+   a dificuldade no lobby.
+4. Inicia o servidor nesse computador, usando o nome pretendido:
+
+   ```bash
+   cd projeto/stk-code/build-server
+   ./bin/supertuxkart --server-config=my.xml --lan-server="GLUA Race 1" --network-console
+   ```
+
+5. Introduz o IP desse computador no menu Python e usa **Assistir**.
 
 ## Rede
 

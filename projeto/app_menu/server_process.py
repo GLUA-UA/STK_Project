@@ -69,6 +69,7 @@ class Servers:
             tree = ET.parse(template)
             for tag, value in (("server-name", server["label"]),
                                ("server-port", "2759"),
+                               ("server-difficulty", str(server.get("difficulty", 0))),
                                ("wan-server", "false"), ("enable-console", "true")):
                 tree.getroot().find(tag).set("value", value)
             config = RUNTIME_DIR / "local_server.xml"

@@ -38,6 +38,9 @@ class MenuApp:
         print("[MENU] Iniciar menu STK.")
         self.set_status("Escolhe os servidores e indica os IPs.")
 
+        self.difficulty_names = ["Novice", "Intermediate", "Expert", "SuperTux"]
+        self.difficulty = 0
+        self.difficulty_button = ui.Button("Local: Novice")
         self.start_button = ui.Button("Assistir", True)
         self.group_button = ui.Button("Configurar grupos", True)
         self.back_button = ui.Button("Voltar")
@@ -124,7 +127,7 @@ class MenuApp:
                 name = f"Server {index + 1}"
             if not address:
                 address = "127.0.0.1"
-            servers.append({"label": name, "ip": address})
+            servers.append({"label": name, "ip": address, "difficulty": self.difficulty})
         try:
             self.servers.start(servers)
             self.viewer.open(servers)
@@ -196,6 +199,12 @@ class MenuApp:
         for index in range(self.server_count):
             self.ip_boxes[index].handle_event(event)
             self.server_names[index].handle_event(event)
+
+        if self.difficulty_button.clicked(event):
+            self.difficulty = (self.difficulty + 1) % len(self.difficulty_names)
+            name = self.difficulty_names[self.difficulty]
+            self.difficulty_button.text = "Local: " + name
+            self.set_status("Dificuldade local: " + name + ". Nos remotos, configura no próprio STK.")
 
         if self.start_button.clicked(event):
             self.open_viewer()
