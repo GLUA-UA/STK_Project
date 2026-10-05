@@ -1,3 +1,0 @@
-[Server 1] ip=100.96.202.14 track=cornfield_crossing
-1. nome=victor kart=pidgin pos=1
-
