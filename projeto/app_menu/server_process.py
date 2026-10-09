@@ -49,7 +49,7 @@ class LocalServer:
                     sock.bind(("0.0.0.0", port))
                 except OSError as error:
                     raise OSError(f"Porta UDP {port} ocupada: {error}") from error
-        template = PROJECT_DIR / "necessary_files" / "for_server" / "my.xml"
+        template = PROJECT_DIR / "necessary_files" / "my.xml"
         RUNTIME_DIR.mkdir(exist_ok=True)
         try:
             tree = ET.parse(template)

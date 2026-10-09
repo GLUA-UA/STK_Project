@@ -258,7 +258,7 @@ cd projeto/stk-code/build-server
 Ha uma configuracao de referencia em:
 
 ```text
-projeto/necessary_files/for_server/my.xml
+projeto/necessary_files/my.xml
 ```
 
 Se `my.xml` nao existir na tua pasta `build-server`, copia esse ficheiro para la
@@ -284,7 +284,7 @@ O botão do menu não altera servidores remotos. Em cada computador remoto:
 2. Na raiz do repositório, copia a configuração:
 
    ```bash
-   cp projeto/necessary_files/for_server/my.xml projeto/stk-code/build-server/my.xml
+   cp projeto/necessary_files/my.xml projeto/stk-code/build-server/my.xml
    ```
 
 3. Edita essa cópia e escolhe o nível. Por exemplo, Expert:
